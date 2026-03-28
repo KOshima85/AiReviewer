@@ -96,8 +96,9 @@ std::string exec(const std::string& cmd) {
 
 // getGitDiff:
 // ステージされた変更（--staged）の git diff を取得するラッパー
+// 改行の違いを無視する(-w)
 std::string getGitDiff() {
-    return exec("git diff --staged");
+    return exec("git diff --staged -w");
 }
 
 // buildPrompt:
@@ -108,16 +109,22 @@ std::string getGitDiff() {
 std::string buildPrompt(const std::string& diff) {
     std::stringstream prompt;
 
-    prompt << "You are a senior C++ engineer.\n";
-    prompt << "Review the following git diff.\n";
-    prompt << "Focus on:\n";
-    prompt << "- memory safety\n";
-    prompt << "- undefined behavior\n";
-    prompt << "- exception safety\n";
-    prompt << "- performance\n";
-    prompt << "- readability\n\n";
+    // システム的な指示を日本語で明確に与える
+    prompt << "あなたは上級のC++エンジニアです。\n";
+    prompt << "以下の git diff をレビューしてください。\n";
+    prompt << "レビューの焦点:\n";
+    prompt << "- メモリ安全性\n";
+    prompt << "- 未定義動作\n";
+    prompt << "- 例外安全性\n";
+    prompt << "- 性能\n";
+    prompt << "- 可読性\n\n";
 
-    prompt << "Return issues with severity (HIGH/MEDIUM/LOW).\n\n";
+    prompt << "各問題について重大度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
+
+    // ここで日本語での出力と JSON 形式を強制する
+    prompt << "必ず日本語で回答してください。\n";
+    //prompt << "回答は必ず次の JSON オブジェクトのみを返してください（余分なテキストや説明は加えないでください）:\n";
+    //prompt << "{\"response\":\"(ここに日本語のレビュー本文)\"}\n\n";
 
     prompt << "Git diff:\n";
     prompt << diff;
@@ -230,6 +237,15 @@ int main() {
         std::cout << "Sending to Ollama...\n";
         // API に送信して応答を取得
         std::string response = callOllama(prompt);
+
+#ifdef _DEBUG
+		// DEBUG: 生の応答を表示
+		std::cout << "Raw response:\n" << response << "\n";
+        if (!response.empty()) {
+            auto displayResponse = response.substr(0, 500); // 文字数制限
+            std::cout << "Raw response preview:\n" << displayResponse << "\n";
+        }
+#endif
 
         try {
             auto j = json::parse(response);
