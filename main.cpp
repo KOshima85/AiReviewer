@@ -19,10 +19,9 @@
    - severity の要求を追加し、git diff を埋め込む
 
 5. callOllama 関数
-   - 一時ファイル prompt.txt にプロンプトを書き出す
-   - curl コマンドを組み立ててローカルの Ollama API に渡す（jq を使って JSON エスケープ）
+   - 一時ファイル payload.json を .aireviewr に書き出す
+   - curl コマンドを組み立ててローカルの Ollama API に渡す
    - exec で curl を実行して結果を取得して返す
-   - 注意: 実運用ではシェル注入やファイル入出力の安全性に注意する（ここでは簡潔化）
 
 6. printHeader 関数
    - ヘッダを標準出力に出す
@@ -38,7 +37,7 @@
 注記:
  - このファイルのコメントは日本語で詳細に説明しています。
  - 実運用では外部コマンドの実行や一時ファイル操作の安全性（競合、注入、権限）をさらに強化してください。
- - C++14 準拠でコンパイル可能なコードを維持します。
+ - C++20 準拠でコンパイル可能なコードを維持します。
 */
 
 #include <iostream>
@@ -48,6 +47,8 @@
 #include <array>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <cerrno>
 
 #include <thread>
 #include <chrono>
@@ -62,11 +63,40 @@ using nlohmann::json;
 */
 #define popen _popen
 #define pclose _pclose
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 
-
 //#define MODEL_NAME "codellama"
-#define MODEL_NAME "qwen3.5:9b"
+//#define MODEL_NAME "qwen3.5:9b"
+//#define MODEL_NAME "qwen3.5:4b"
+#define MODEL_NAME "gemma3:4b"
+
+// ディレクトリ名（変更可）
+static const std::string csDataDir = ".aireviewr";
+
+// C++ 標準の filesystem を条件付きで使う（C++17 の <filesystem> または experimental）
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#error "No filesystem support: require <filesystem> or <experimental/filesystem>"
+#endif
+
+// ディレクトリ作成（存在すれば OK）
+static bool ensure_directory_exists(const std::string& dir) {
+    std::error_code ec;
+    if (fs::exists(dir, ec)) {
+        return fs::is_directory(dir, ec);
+    }
+    // 親ディレクトリも含めて作成
+    return fs::create_directories(dir, ec);
+}
 
 // exec:
 // 与えられたシェルコマンドを実行し、その標準出力を文字列として返す。
@@ -75,22 +105,27 @@ using nlohmann::json;
 // - 固定長バッファを使い、結果を result に追加して返す。
 // 注意: 大きな出力やバイナリデータの扱いには注意が必要。
 std::string exec(const std::string& cmd) {
-    std::array<char, 128> buffer;
+    std::vector<char> buffer(4096);
     std::string result;
+    result.reserve(8192);
 
-    // popen の戻りを unique_ptr で管理し、pclose をデリータとして渡す
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+    FILE* fp = popen(cmd.c_str(), "r");
+    if (!fp) throw std::runtime_error("popen() failed");
 
-    if (!pipe) {
-        // popen が null を返したら例外を投げる（呼び出し元で捕捉する）
-        throw std::runtime_error("popen() failed");
+    while (true) {
+        size_t n = std::fread(buffer.data(), 1, buffer.size(), fp);
+        if (n > 0) result.append(buffer.data(), n);
+        if (n < buffer.size()) {
+            if (std::feof(fp)) break;
+            if (std::ferror(fp)) {
+                pclose(fp);
+                throw std::runtime_error("Error reading from pipe");
+            }
+        }
     }
 
-    // fgets が nullptr を返すまで読み続ける（EOF まで）
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-
+    int rc = pclose(fp);
+    (void)rc; // 必要なら rc をチェックして例外化
     return result;
 }
 
@@ -120,11 +155,15 @@ std::string buildPrompt(const std::string& diff) {
     prompt << "- 可読性\n\n";
 
     prompt << "各問題について重大度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
+    prompt << "問題は箇条書きしてください。\n\n";
+    prompt << "説明は不要です。\n\n";
 
-    // ここで日本語での出力と JSON 形式を強制する
+    // ここで日本語での出力を明示する
     prompt << "必ず日本語で回答してください。\n";
-    //prompt << "回答は必ず次の JSON オブジェクトのみを返してください（余分なテキストや説明は加えないでください）:\n";
-    //prompt << "{\"response\":\"(ここに日本語のレビュー本文)\"}\n\n";
+
+    prompt << "【出力フォーマット（厳密に守ること）】\n";
+    prompt << "【概要】{全体の要約（短い日本語文）}";
+    prompt << "- {レビューの焦点}({HIGH/MEDIUM/LOW}):{短く日本語で記述}\n\n";
 
     prompt << "Git diff:\n";
     prompt << diff;
@@ -140,9 +179,8 @@ void InitOllama() {
 	std::string psOutput = exec("ollama ps");
     if (psOutput.find(MODEL_NAME) == std::string::npos) {
         // codellama が起動してない場合はモデルをserveで起動する
-        std::cout << "Starting codellama model...\n";
-        exec("ollama serve codellama &");
-
+        std::cout << "Starting "<< MODEL_NAME << " model...\n";
+        exec(std::string("ollama serve ") + MODEL_NAME + " &");
         // 起動後、少し待ってから再度 ps を確認する
         bool modelStarted = false;
         for (int i = 0; i < 5; ++i) {
@@ -191,19 +229,24 @@ std::string callOllama(const std::string& prompt) {
     std::string payload =
         std::string("{\"model\":\"") + MODEL_NAME +
         std::string("\",\"prompt\":\"") + escaped +
-        std::string("\",\"stream\":false}");
+		std::string("\",\"stream\":false,\"temperature\":0.4,\"repeat_penalty\":1.2}"); // temperature:発散の抑制、repeat_penalty:同じ内容の繰り返し抑制
 
-    // ファイルに書き出す（-d @file を使うことでシェルのクォート問題を回避）
-    std::ofstream out("payload.json", std::ios::binary);
+    // payload.json を .aireviewr に書き出す
+    std::string payload_path = csDataDir + "/payload.json";
+    std::ofstream out(payload_path, std::ios::binary);
+    if (!out) throw std::runtime_error("failed to open payload file: " + payload_path);
     out << payload;
     out.close();
 
     std::string cmd =
         "curl -s -X POST http://localhost:11434/api/generate "
-        "-H \"Content-Type: application/json\" -d @payload.json";
+        "-H \"Content-Type: application/json\" -d @" + payload_path;
 
     std::cout << "Executing command:\n" << cmd << "\n";
-    return exec(cmd);
+	std::string response = exec(cmd);
+    // 終了前に一時ファイルを削除する（必要に応じて）
+    std::remove((csDataDir + "/payload.json").c_str());
+    return response;
 }
 
 // printHeader:
@@ -215,9 +258,23 @@ void printHeader() {
 }
 
 int main() {
+
+    // ディレクトリを確保
+    if (!ensure_directory_exists(csDataDir)) {
+        std::cerr << "Failed to create data directory: " << csDataDir << "\n";
+        return 1;
+    }
+
+	// 実行日時を取得してファイル名に使う
+	auto now = std::chrono::system_clock::now();
+	std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+	std::string timestamp = std::to_string(now_c);
+
+
     try {
         printHeader();
 
+        // TODO: Ollama以外のLLMに対応できるようにする
         InitOllama();
 
         std::cout << "Collecting git diff...\n";
@@ -236,42 +293,52 @@ int main() {
 
         std::cout << "Sending to Ollama...\n";
         // API に送信して応答を取得
-        std::string response = callOllama(prompt);
+        std::string response = callOllama(prompt);        // TODO: Ollama以外のLLMに対応できるようにする
 
-#ifdef _DEBUG
-		// DEBUG: 生の応答を表示
-		std::cout << "Raw response:\n" << response << "\n";
-        if (!response.empty()) {
-            auto displayResponse = response.substr(0, 500); // 文字数制限
-            std::cout << "Raw response preview:\n" << displayResponse << "\n";
-        }
+#ifdef _DEBUG 
+		// response を .aireviewr 以下に保存する（デバッグ用）
+        // 終了後も確認できるように削除はしない
+        std::ofstream debugOut(csDataDir + "/debug_response_" + timestamp + ".txt", std::ios::binary);
+        debugOut << response;
+		debugOut.close();
 #endif
 
+		std::string sResultFile = csDataDir + "/review_result.txt"; // 結果ファイル名。常に最新のみを保持する。
         try {
             auto j = json::parse(response);
             if (j.contains("response") && j["response"].is_string()) {
                 std::string parsed = j["response"].get<std::string>();
                 std::cout << parsed << std::endl;
-                std::ofstream out("review_result.txt", std::ios::binary);
+                // 結果ファイルを .aireviewr 以下に出力
+                std::ofstream out(sResultFile, std::ios::binary);
+                if (!out) throw std::runtime_error("failed to open payload file: " + sResultFile);
                 out << parsed;
                 out.close();
             } else {
                 // "response" フィールドが無い・文字列でない場合は生の応答を使う
                 std::cout << response << std::endl;
-                std::ofstream out("review_result.txt", std::ios::binary);
+                std::ofstream out(sResultFile, std::ios::binary);
+                if (!out) throw std::runtime_error("failed to open payload file: " + sResultFile);
                 out << response;
                 out.close();
             }
+		    // done_reason をチェックして警告を出す（json 解析後）
+		    if (j.contains("done_reason") && j["done_reason"].is_string()) {
+			    std::string done = j["done_reason"].get<std::string>();
+			    if (done != "stop") {
+				    std::cerr << "Warning: done_reason = " << done << " (response may be truncated or stopped for another reason)\n";
+				    // 必要ならここで再試行やログ出力を行う
+			    }
+		    }
         } catch (const json::parse_error& e) {
             std::cerr << "JSON parse error: " << e.what() << std::endl;
             std::cout << response << std::endl;
-            std::ofstream out("review_result.txt", std::ios::binary);
+            std::ofstream out(sResultFile, std::ios::binary);
+            if (!out) throw std::runtime_error("failed to open payload file: " + sResultFile);
             out << response;
             out.close();
         }
 
-		// 終了前に一時ファイルを削除する（必要に応じて）
-		std::remove("payload.json");
 
 
     }
@@ -279,4 +346,10 @@ int main() {
         // 例外発生時はエラーメッセージを出力して終了
         std::cerr << "Error: " << e.what() << std::endl;
     }
+
+    // 実行時間を出力
+	auto end = std::chrono::system_clock::now();
+	std::chrono::duration<double> elapsed = end - now;
+    std::cout << "Execution time: " << elapsed.count() << " seconds\n";
+	return 0;
 }
