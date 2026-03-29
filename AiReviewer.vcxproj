@@ -125,12 +125,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Exec.cpp" />
+    <ClCompile Include="LLMConnector.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="OllamaConnector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Config.h" />
+    <ClInclude Include="Define.h" />
+    <ClInclude Include="Exec.h" />
+    <ClInclude Include="LLMConnector.h" />
+    <ClInclude Include="OllamaConnector.h" />
     <ClInclude Include="PayloadFile.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
