@@ -157,13 +157,16 @@ std::string buildPrompt(const std::string& diff) {
     prompt << "各問題について重大度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
     prompt << "問題は箇条書きしてください。\n\n";
     prompt << "説明は不要です。\n\n";
+    prompt << "最後に総合評価を記載してください。\n\n";
 
     // ここで日本語での出力を明示する
     prompt << "必ず日本語で回答してください。\n";
 
     prompt << "【出力フォーマット（厳密に守ること）】\n";
-    prompt << "【概要】{全体の要約（短い日本語文）}";
+    prompt << "【概要】{全体の要約（短い日本語文）}\n\n";
     prompt << "- {レビューの焦点}({HIGH/MEDIUM/LOW}):{短く日本語で記述}\n\n";
+    prompt << "【総評】{全体の総合評価（短い日本語文）}\n\n";
+
 
     prompt << "Git diff:\n";
     prompt << diff;
