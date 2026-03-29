@@ -88,6 +88,9 @@ namespace fs = std::experimental::filesystem;
 #error "No filesystem support: require <filesystem> or <experimental/filesystem>"
 #endif
 
+
+#include "PayloadFile.h"
+
 // ディレクトリ作成（存在すれば OK）
 static bool ensure_directory_exists(const std::string& dir) {
     std::error_code ec;
@@ -154,9 +157,9 @@ std::string buildPrompt(const std::string& diff) {
     prompt << "- 性能\n";
     prompt << "- 可読性\n\n";
 
-    prompt << "各問題について重大度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
+    prompt << "各問題について危険度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
     prompt << "問題は箇条書きしてください。\n\n";
-    prompt << "説明は不要です。\n\n";
+    //prompt << "説明は不要です。\n\n";
     prompt << "最後に総合評価を記載してください。\n\n";
 
     // ここで日本語での出力を明示する
@@ -164,7 +167,7 @@ std::string buildPrompt(const std::string& diff) {
 
     prompt << "【出力フォーマット（厳密に守ること）】\n";
     prompt << "【概要】{全体の要約（短い日本語文）}\n\n";
-    prompt << "- {レビューの焦点}({HIGH/MEDIUM/LOW}):{短く日本語で記述}\n\n";
+    prompt << "- レビューの焦点:{短く日本語で記述} (危険度：{HIGH/MEDIUM/LOW})\n\n";
     prompt << "【総評】{全体の総合評価（短い日本語文）}\n\n";
 
 
@@ -234,21 +237,18 @@ std::string callOllama(const std::string& prompt) {
         std::string("\",\"prompt\":\"") + escaped +
 		std::string("\",\"stream\":false,\"temperature\":0.4,\"repeat_penalty\":1.2}"); // temperature:発散の抑制、repeat_penalty:同じ内容の繰り返し抑制
 
-    // payload.json を .aireviewr に書き出す
-    std::string payload_path = csDataDir + "/payload.json";
-    std::ofstream out(payload_path, std::ios::binary);
-    if (!out) throw std::runtime_error("failed to open payload file: " + payload_path);
-    out << payload;
-    out.close();
+	PayloadFile payloadFile{ csDataDir + "/payload.json" };
+#ifdef _DEBUG
+	payloadFile.keep_file(); // デバッグ時はペイロードファイルを残す
+#endif
+	payloadFile.write_all(payload);
 
     std::string cmd =
         "curl -s -X POST http://localhost:11434/api/generate "
-        "-H \"Content-Type: application/json\" -d @" + payload_path;
+        "-H \"Content-Type: application/json\" -d @" + payloadFile.path;
 
     std::cout << "Executing command:\n" << cmd << "\n";
 	std::string response = exec(cmd);
-    // 終了前に一時ファイルを削除する（必要に応じて）
-    std::remove((csDataDir + "/payload.json").c_str());
     return response;
 }
 
