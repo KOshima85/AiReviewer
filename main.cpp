@@ -110,6 +110,7 @@ std::string buildPrompt(const std::string& diff, const std::vector<std::string>&
         prompt << "- " << f << "\n";
     }
     prompt << "\n各問題について危険度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
+    prompt << "\n危険度は HIGH=致命的, MEDIUM=普通, LOW=軽微 とします。\n\n";
     prompt << "問題は箇条書きしてください。\n\n";
     prompt << "最後に総合評価を記載してください。\n\n";
     prompt << "必ず日本語で回答してください。\n";
