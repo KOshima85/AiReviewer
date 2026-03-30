@@ -5,9 +5,29 @@
 #include <cctype>
 #include <cstring>
 #include <string_view>
+#include <atomic>
+#include <cstdlib>
 
 #include "Exec.h"
 #include "PayloadFile.h"
+
+#ifdef _WIN32
+#include <process.h>
+static int getCurrentPid() { return _getpid(); }
+#else
+#include <unistd.h>
+static int getCurrentPid() { return static_cast<int>(getpid()); }
+#endif
+
+// プロセス内でユニークなペイロードファイル名を生成する
+// 形式: payload_<PID>_<連番>.json
+static std::string makePayloadPath() {
+    static std::atomic<int> s_counter{0};
+    int idx = s_counter.fetch_add(1, std::memory_order_relaxed);
+    return std::string(csDataDir) + "/payload_" +
+           std::to_string(getCurrentPid()) + "_" +
+           std::to_string(idx) + ".json";
+}
 
 void OllamaConnector::Initialize()
 {
@@ -42,7 +62,7 @@ std::string OllamaConnector::Call(const std::string& prompt)
         std::string("\",\"prompt\":\"") + escaped +
         std::string("\",\"stream\":false,\"temperature\":0.4,\"repeat_penalty\":1.2}");
 
-    PayloadFile payloadFile{ csDataDir + "/payload.json" };
+    PayloadFile payloadFile{ makePayloadPath() };
 #ifdef _DEBUG
     payloadFile.KeepFile();
 #endif
