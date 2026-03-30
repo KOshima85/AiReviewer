@@ -9,7 +9,7 @@
 #include "Exec.h"
 #include "PayloadFile.h"
 
-void OllamaConnector::Initilize()
+void OllamaConnector::Initialize()
 {
     if(cfg == nullptr) {
         throw std::runtime_error("Config is null");

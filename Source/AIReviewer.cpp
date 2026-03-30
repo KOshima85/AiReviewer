@@ -4,6 +4,8 @@
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
+#include <chrono>
 #include <iostream>
 
 using nlohmann::json;
@@ -14,7 +16,7 @@ AIReviewer::AIReviewer(const Config* cfg, LLMConnector& connector) noexcept
 }
 
 void AIReviewer::Initialize() {
-    m_connector.Initilize();
+    m_connector.Initialize();
 }
 
 std::string AIReviewer::collectDiff() const {

@@ -44,7 +44,6 @@
 #include <sstream>
 #include <fstream>
 #include <cstdio>
-#include <array>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -52,7 +51,6 @@
 
 #include <thread>
 #include <chrono>
-#include <stdio.h>
 
 using nlohmann::json;
 
