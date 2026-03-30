@@ -76,7 +76,6 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #include "Define.h"
-#include "Exec.h"
 #include "Config.h"
 #include "OllamaConnector.h"
 #include "AIReviewer.h"
