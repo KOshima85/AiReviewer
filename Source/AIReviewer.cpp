@@ -12,7 +12,8 @@
 using nlohmann::json;
 
 AIReviewer::AIReviewer(const Config* cfg, LLMConnector& connector) noexcept
-	:m_connector(connector), m_focus(cfg->review_focus), m_useStagedDiff(cfg->use_staged_diff)
+	:m_connector(connector), m_focus(cfg->review_focus), m_useStagedDiff(cfg->use_staged_diff),
+	 m_maxHigh(cfg->max_high), m_maxMedium(cfg->max_medium), m_maxLow(cfg->max_low)
 {
 }
 
@@ -61,8 +62,9 @@ void AIReviewer::persistResult(const std::string& response) const {
     ofs << response;
 }
 
-void AIReviewer::AnalyzeResponse(const std::string& response)
+int AIReviewer::AnalyzeResponse(const std::string& response)
 {
+    int exitCode = 0;
     try {
         auto j = json::parse(response);
         if (j.contains("response") && j["response"].is_string()) {
@@ -72,10 +74,29 @@ void AIReviewer::AnalyzeResponse(const std::string& response)
 			// 結果をファイルに保存する
 			persistResult(parsed);
 
+            // カラー適用前に危険度をカウントする
+            int highCount   = countOccurrences(parsed, "HIGH");
+            int mediumCount = countOccurrences(parsed, "MEDIUM");
+            int lowCount    = countOccurrences(parsed, "LOW");
+
 			// 危険度ラベルに ANSI カラーを適用する
             parsed = applySeverityColors(parsed);
 
             std::cout << parsed << std::endl;
+
+            // 閾値チェック（-1 は無制限）
+            auto exceeds = [](int count, int max) {
+                return max >= 0 && count > max;
+            };
+            if (exceeds(highCount, m_maxHigh) ||
+                exceeds(mediumCount, m_maxMedium) ||
+                exceeds(lowCount, m_maxLow)) {
+                std::cerr << "[BLOCK] 危険度が閾値を超えたためコミットをブロックします"
+                          << " (HIGH=" << highCount
+                          << ", MEDIUM=" << mediumCount
+                          << ", LOW=" << lowCount << ")\n";
+                exitCode = 1;
+            }
         }
         else {
 			// "response" フィールドがない場合は全体をそのまま出力する
@@ -94,6 +115,7 @@ void AIReviewer::AnalyzeResponse(const std::string& response)
         std::cout << response << std::endl;
         persistResult(response);
     }
+    return exitCode;
 }
 
 std::string AIReviewer::RunOnce() {

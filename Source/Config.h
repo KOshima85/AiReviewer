@@ -24,6 +24,10 @@ struct Config {
     std::string model;    // 例: "gemma3:4b"
     std::vector<std::string> review_focus; // レビューの焦点
 	bool use_staged_diff; // git diff で --staged を使うか
+    // 危険度ブロック閾値: -1=無制限, 0以上=その件数まで許容(超過でブロック)
+    int max_high;
+    int max_medium;
+    int max_low;
 
 	// デフォルト設定
     static Config Defaults() {
@@ -32,7 +36,10 @@ struct Config {
             11434,
             MODEL_NAME,
             { "メモリ安全性", "未定義動作", "例外安全性", "性能", "可読性","SOLID原則"},
-			true
+			true,
+            0,   // max_high   : HIGH 0件まで許容 (1件でもブロック)
+            -1,  // max_medium : 無制限
+            -1   // max_low    : 無制限
         };
     }
 
@@ -49,6 +56,9 @@ struct Config {
             j["model"] = cfg.model;
             j["review_focus"] = cfg.review_focus;
 			j["use_staged_diff"] = cfg.use_staged_diff;
+            j["max_high"]   = cfg.max_high;
+            j["max_medium"] = cfg.max_medium;
+            j["max_low"]    = cfg.max_low;
             std::ofstream out(path, std::ios::binary);
             if (out) out << j.dump(2);
             return cfg;
@@ -85,6 +95,14 @@ struct Config {
             if (j.contains("use_staged_diff") && j["use_staged_diff"].is_boolean()) {
                 cfg.use_staged_diff = j["use_staged_diff"].get<bool>();
             }
+            auto readIntOrDefault = [&](const char* key, int& out) {
+                if (j.contains(key) && j[key].is_number_integer()) {
+                    out = j[key].get<int>();
+                }
+            };
+            readIntOrDefault("max_high",   cfg.max_high);
+            readIntOrDefault("max_medium", cfg.max_medium);
+            readIntOrDefault("max_low",    cfg.max_low);
         }
         catch (...) {
             // 読み込み/解析失敗はデフォルトを返す（既存ファイルは上書きしない）

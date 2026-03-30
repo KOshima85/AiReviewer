@@ -11,7 +11,8 @@ public:
     void Initialize();
     // 1 回分のレビューを実行して結果文字列を返す（例外は呼び出し元で処理）
     std::string RunOnce();
-    void AnalyzeResponse(const std::string& response);
+    // レスポンスを解析して表示する。危険度が閾値超の場合は 1 を返す（コミットブロック用）
+    int AnalyzeResponse(const std::string& response);
 
 private:
     std::string collectDiff() const;
@@ -22,4 +23,7 @@ private:
     LLMConnector& m_connector;
     std::vector<std::string> m_focus;
 	bool m_useStagedDiff;
+    int m_maxHigh;
+    int m_maxMedium;
+    int m_maxLow;
 };

@@ -11,6 +11,18 @@ inline void replaceAll(std::string& str, const std::string& from, const std::str
     }
 }
 
+// テキスト内の pattern の出現回数を数える
+inline int countOccurrences(const std::string& text, const std::string& pattern)
+{
+    int count = 0;
+    size_t pos = 0;
+    while ((pos = text.find(pattern, pos)) != std::string::npos) {
+        ++count;
+        pos += pattern.length();
+    }
+    return count;
+}
+
 // レビュー結果テキスト中の危険度ラベルに ANSI カラーコードを適用して返す
 // HIGH   → 赤    (\033[31m)
 // MEDIUM → 黄    (\033[33m)

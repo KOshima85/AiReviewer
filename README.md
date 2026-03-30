@@ -6,7 +6,7 @@
 - ローカルLLMを利用することで完全にローカルで完結します。
 
 ## 主な特徴
-- 設定ファイル (`.aireviewr/config.json`) でエンドポイント・ポート・使用モデル・レビュー焦点を変更可能
+- 設定ファイル (`.aireviewr/config.json`) でエンドポイント・ポート・使用モデル・レビュー焦点・**危険度ブロック閾値**を変更可能
 
 ## 必須要件
 
@@ -24,12 +24,29 @@
 ```json
 {
   "endpoint": "http://localhost",
-  "port": 11434, // Ollama のデフォルトポート.セキュリティ要件に合わせて変更・監視してください
-  "model": "gemma3:4b", // 使用するモデル名
+  "port": 11434,
+  "model": "gemma3:4b",
   "review_focus": ["メモリ安全性","未定義動作","例外安全性","性能","可読性","SOLID原則"],
-  "use_staged_diff": true, // **ステージされた**差分を使用するか（true）、ワーキングツリーの差分を使用するか（false）
+  "use_staged_diff": true,
+  "max_high": 0,
+  "max_medium": -1,
+  "max_low": -1
 }
 ```
+
+| フィールド | 型 | デフォルト | 説明 |
+|-----------|---|-----------|------|
+| `endpoint` | string | `"http://localhost"` | Ollama エンドポイント（`http://` または `https://` で始まる必要あり） |
+| `port` | int | `11434` | Ollama のポート番号 |
+| `model` | string | `"gemma3:12b"` | 使用するモデル名 |
+| `review_focus` | string[] | 上記6項目 | レビューで重視する観点 |
+| `use_staged_diff` | bool | `true` | `true`: ステージ済み差分、`false`: ワーキングツリー差分 |
+| `max_high` | int | `0` | 許容する HIGH 件数の上限（超過でコミットブロック、`-1` で無制限） |
+| `max_medium` | int | `-1` | 許容する MEDIUM 件数の上限（`-1` で無制限） |
+| `max_low` | int | `-1` | 許容する LOW 件数の上限（`-1` で無制限） |
+
+> **コミットブロック**: `max_high=0`（デフォルト）の場合、HIGH が 1 件以上あると終了コード 1 を返します。
+> git pre-commit フックで利用すると、危険度の高い問題があるコミットを自動的にブロックできます。
 
 ## ビルド手順（Windows / Visual Studio）
 

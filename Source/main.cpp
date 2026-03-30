@@ -110,6 +110,7 @@ int main() {
 	std::unique_ptr<OllamaConnector> connector (new OllamaConnector(&cfg));
     std::unique_ptr<AIReviewer> reviewer(new AIReviewer(&cfg, *connector));
 
+    int reviewExitCode = 0;
     try {
         printHeader();
 
@@ -119,15 +120,16 @@ int main() {
 			// 変更が無い場合は空文字列が返る想定なので、そのまま終了する
             return 0;
 		}
-        reviewer->AnalyzeResponse(response);
+        reviewExitCode = reviewer->AnalyzeResponse(response);
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
     }
 
     // 実行時間を出力
 	auto end = std::chrono::system_clock::now();
 	std::chrono::duration<double> elapsed = end - now;
     std::cout << "Execution time: " << elapsed.count() << " seconds\n";
-    return 0;
+    return reviewExitCode;
 }
