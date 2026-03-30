@@ -15,8 +15,6 @@ namespace fs = std::experimental::filesystem;
 #error "No filesystem support: require <filesystem> or <experimental/filesystem>"
 #endif
 
-using nlohmann::json;
-
 inline constexpr char MODEL_NAME[] = "gemma3:12b";
 
 // ----- Config: 設定ファイルの読み書きと構造 -----
@@ -45,7 +43,7 @@ struct Config {
         if (!fs::exists(path, ec)) {
             // ディレクトリは既に ensure_directory_exists で作られている想定
             // デフォルトを書き出す
-            json j;
+            nlohmann::json j;
             j["endpoint"] = cfg.endpoint;
             j["port"] = cfg.port;
             j["model"] = cfg.model;
@@ -60,7 +58,7 @@ struct Config {
         try {
             std::ifstream in(path, std::ios::binary);
             if (!in) return cfg;
-            json j;
+            nlohmann::json j;
             in >> j;
             if (j.contains("endpoint") && j["endpoint"].is_string()) cfg.endpoint = j["endpoint"].get<std::string>();
             if (j.contains("port") && (j["port"].is_number_integer() || j["port"].is_string())) {
