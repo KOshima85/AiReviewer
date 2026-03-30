@@ -79,6 +79,7 @@ namespace fs = std::experimental::filesystem;
 #include "Exec.h"
 #include "Config.h"
 #include "OllamaConnector.h"
+#include "AIReviewer.h"
 
 // ディレクトリ作成（存在すれば OK）
 static bool ensure_directory_exists(const std::string& dir) {
@@ -87,40 +88,6 @@ static bool ensure_directory_exists(const std::string& dir) {
         return fs::is_directory(dir, ec);
     }
     return fs::create_directories(dir, ec);
-}
-
-// getGitDiff:
-// ステージされた変更（--staged）の git diff を取得するラッパー
-// 改行の違いを無視する(-w)
-std::string getGitDiff() {
-    return exec("git diff --staged -w");
-}
-
-// buildPrompt:
-// AI に送るプロンプトを組み立てる。
-// - レビューの焦点（メモリ安全性、未定義動作、例外安全性、性能、可読性）を明示する。
-// - 各問題に対して重大度（HIGH/MEDIUM/LOW）を返すよう指示する。
-// - git diff を末尾に含める。
-std::string buildPrompt(const std::string& diff, const std::vector<std::string>& focus) {
-    std::stringstream prompt;
-    prompt << "あなたは上級のC++エンジニアです。\n";
-    prompt << "以下の git diff をレビューしてください。\n";
-    prompt << "レビューの焦点:\n";
-    for (const auto &f : focus) {
-        prompt << "- " << f << "\n";
-    }
-    prompt << "\n各問題について危険度を (HIGH/MEDIUM/LOW) で示してください。\n\n";
-    prompt << "\n危険度は HIGH=致命的, MEDIUM=普通, LOW=軽微 とします。\n\n";
-    prompt << "問題は箇条書きしてください。\n\n";
-    prompt << "最後に総合評価を記載してください。\n\n";
-    prompt << "必ず日本語で回答してください。\n";
-    prompt << "【出力フォーマット（厳密に守ること）】\n";
-    prompt << "【概要】{全体の要約（短い日本語文）}\n\n";
-    prompt << "- レビューの焦点:{短く日本語で記述} (危険度：{HIGH/MEDIUM/LOW})\n\n";
-    prompt << "【総評】{全体の総合評価（短い日本語文）}\n\n";
-    prompt << "Git diff:\n";
-    prompt << diff;
-    return prompt.str();
 }
 
 void analyzeResponse(const std::string response) {
@@ -182,29 +149,13 @@ int main() {
     std::string timestamp = std::to_string(now_c);
 
 	std::unique_ptr<OllamaConnector> connector (new OllamaConnector());
+    std::unique_ptr<AIReviewer> reviewer(new AIReviewer(cfg, *connector));
 
     try {
         printHeader();
-		connector.get()->Initilize();
 
-        std::cout << "Collecting git diff...\n";
-        std::string diff = getGitDiff();
-        if (diff.empty()) {
-            std::cout << "No staged changes.\n";
-            return 0;
-        }
-
-        std::cout << "Building prompt...\n";
-        std::string prompt = buildPrompt(diff, cfg.review_focus);
-
-        std::cout << "Sending to LLM...\n";
-		std::string response = connector.get()->Call(prompt, cfg);
-
-#ifdef _DEBUG
-        std::ofstream debugOut(csDataDir + "/debug_response_" + timestamp + ".txt", std::ios::binary);
-        debugOut << response;
-        debugOut.close();
-#endif
+		reviewer->Initialize();
+        std::string response = reviewer->RunOnce();
 		analyzeResponse(response);
 
     } catch (const std::exception& e) {
