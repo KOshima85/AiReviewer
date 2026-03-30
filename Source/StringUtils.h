@@ -10,3 +10,16 @@ inline void replaceAll(std::string& str, const std::string& from, const std::str
         pos += to.length(); // 無限ループ防止
     }
 }
+
+// レビュー結果テキスト中の危険度ラベルに ANSI カラーコードを適用して返す
+// HIGH   → 赤    (\033[31m)
+// MEDIUM → 黄    (\033[33m)
+// LOW    → 緑    (\033[32m)
+// 将来的に HTML タグや JSON 形式への変換が必要な場合はここを変更する
+inline std::string applySeverityColors(std::string text)
+{
+    replaceAll(text, "HIGH",   "\033[31mHIGH\033[0m");
+    replaceAll(text, "MEDIUM", "\033[33mMEDIUM\033[0m");
+    replaceAll(text, "LOW",    "\033[32mLOW\033[0m");
+    return text;
+}

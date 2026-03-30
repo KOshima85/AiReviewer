@@ -72,12 +72,8 @@ void AIReviewer::AnalyzeResponse(const std::string& response)
 			// 結果をファイルに保存する
 			persistResult(parsed);
 
-			// 危険度を色付けする（ターミナルで見やすくするための簡易的な方法）
-            // TODO: 色分け処理を適切に分離する（別関数にする。必要であればhtmlタグにするなどできると良いかも）
-            // TODO: 危険度をカウントして一定値以下ならコミットできるようにする等の機能も検討したい
-            replaceAll(parsed, "HIGH", "\033[31mHIGH\033[0m");
-            replaceAll(parsed, "MEDIUM", "\033[33mMEDIUM\033[0m");
-            replaceAll(parsed, "LOW", "\033[32mLOW\033[0m");
+			// 危険度ラベルに ANSI カラーを適用する
+            parsed = applySeverityColors(parsed);
 
             std::cout << parsed << std::endl;
         }
