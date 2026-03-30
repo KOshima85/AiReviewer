@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cctype>
 
 // 文字列中の from を全て to に置換する
 inline void replaceAll(std::string& str, const std::string& from, const std::string& to)
@@ -21,6 +22,21 @@ inline int countOccurrences(const std::string& text, const std::string& pattern)
         pos += pattern.length();
     }
     return count;
+}
+
+// glob パターンとして安全な文字のみで構成されているか検証する
+// シェルコマンドへの注入を防ぐため、英数字と一般的な glob 記号のみを許容する
+inline bool isValidGlobPattern(const std::string& pattern)
+{
+    if (pattern.empty()) return false;
+    for (char c : pattern) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) &&
+            c != '*' && c != '?' && c != '.' && c != '_' && c != '-' &&
+            c != '/' && c != '[' && c != ']' && c != '{' && c != '}' && c != '!') {
+            return false;
+        }
+    }
+    return true;
 }
 
 // レビュー結果テキスト中の危険度ラベルに ANSI カラーコードを適用して返す

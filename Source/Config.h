@@ -28,6 +28,9 @@ struct Config {
     int max_high;
     int max_medium;
     int max_low;
+    // レビュー対象ファイルのフィルタリング（glob 形式。空=全ファイル対象）
+    std::vector<std::string> include_patterns; // 例: ["*.cpp", "*.h"]
+    std::vector<std::string> exclude_patterns; // 例: ["*.generated.cpp"]
 
 	// デフォルト設定
     static Config Defaults() {
@@ -39,7 +42,9 @@ struct Config {
 			true,
             0,   // max_high   : HIGH 0件まで許容 (1件でもブロック)
             -1,  // max_medium : 無制限
-            -1   // max_low    : 無制限
+            -1,  // max_low    : 無制限
+            {},  // include_patterns: 空=全ファイル対象
+            {}   // exclude_patterns: 空=除外なし
         };
     }
 
@@ -59,6 +64,8 @@ struct Config {
             j["max_high"]   = cfg.max_high;
             j["max_medium"] = cfg.max_medium;
             j["max_low"]    = cfg.max_low;
+            j["include_patterns"] = cfg.include_patterns;
+            j["exclude_patterns"] = cfg.exclude_patterns;
             std::ofstream out(path, std::ios::binary);
             if (out) out << j.dump(2);
             return cfg;
@@ -103,6 +110,16 @@ struct Config {
             readIntOrDefault("max_high",   cfg.max_high);
             readIntOrDefault("max_medium", cfg.max_medium);
             readIntOrDefault("max_low",    cfg.max_low);
+            auto readStringArray = [&](const char* key, std::vector<std::string>& out) {
+                if (j.contains(key) && j[key].is_array()) {
+                    out.clear();
+                    for (auto& it : j[key]) {
+                        if (it.is_string()) out.push_back(it.get<std::string>());
+                    }
+                }
+            };
+            readStringArray("include_patterns", cfg.include_patterns);
+            readStringArray("exclude_patterns", cfg.exclude_patterns);
         }
         catch (...) {
             // 読み込み/解析失敗はデフォルトを返す（既存ファイルは上書きしない）

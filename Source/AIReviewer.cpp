@@ -13,7 +13,8 @@ using nlohmann::json;
 
 AIReviewer::AIReviewer(const Config* cfg, LLMConnector& connector) noexcept
 	:m_connector(connector), m_focus(cfg->review_focus), m_useStagedDiff(cfg->use_staged_diff),
-	 m_maxHigh(cfg->max_high), m_maxMedium(cfg->max_medium), m_maxLow(cfg->max_low)
+	 m_maxHigh(cfg->max_high), m_maxMedium(cfg->max_medium), m_maxLow(cfg->max_low),
+	 m_includePatterns(cfg->include_patterns), m_excludePatterns(cfg->exclude_patterns)
 {
 }
 
@@ -22,10 +23,31 @@ void AIReviewer::Initialize() {
 }
 
 std::string AIReviewer::collectDiff() const {
-    if (m_useStagedDiff) {
-        return exec("git diff --staged -w");
+    std::string cmd = "git diff";
+    if (m_useStagedDiff) cmd += " --staged";
+    cmd += " -w";
+
+    // include/exclude パターンが指定されている場合は git pathspec として追加する
+    // 安全でないパターンは無視し、有効なもののみ渡す
+    bool hasFilter = false;
+    for (const auto& p : m_includePatterns) {
+        if (isValidGlobPattern(p)) hasFilter = true;
     }
-    return exec("git diff -w");
+    for (const auto& p : m_excludePatterns) {
+        if (isValidGlobPattern(p)) hasFilter = true;
+    }
+
+    if (hasFilter) {
+        cmd += " --";
+        for (const auto& p : m_includePatterns) {
+            if (isValidGlobPattern(p)) cmd += " \"" + p + "\"";
+        }
+        for (const auto& p : m_excludePatterns) {
+            if (isValidGlobPattern(p)) cmd += " \":(exclude)" + p + "\"";
+        }
+    }
+
+    return exec(cmd);
 }
 
 std::string AIReviewer::buildPrompt(const std::string& diff) const {

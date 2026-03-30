@@ -30,7 +30,9 @@
   "use_staged_diff": true,
   "max_high": 0,
   "max_medium": -1,
-  "max_low": -1
+  "max_low": -1,
+  "include_patterns": ["*.cpp", "*.h"],
+  "exclude_patterns": ["*.generated.cpp"]
 }
 ```
 
@@ -44,9 +46,14 @@
 | `max_high` | int | `0` | 許容する HIGH 件数の上限（超過でコミットブロック、`-1` で無制限） |
 | `max_medium` | int | `-1` | 許容する MEDIUM 件数の上限（`-1` で無制限） |
 | `max_low` | int | `-1` | 許容する LOW 件数の上限（`-1` で無制限） |
+| `include_patterns` | string[] | `[]` | レビュー対象ファイルの glob パターン（空=全ファイル対象）例: `["*.cpp", "*.h"]` |
+| `exclude_patterns` | string[] | `[]` | レビューから除外するファイルの glob パターン 例: `["*.generated.cpp"]` |
 
 > **コミットブロック**: `max_high=0`（デフォルト）の場合、HIGH が 1 件以上あると終了コード 1 を返します。
 > git pre-commit フックで利用すると、危険度の高い問題があるコミットを自動的にブロックできます。
+
+> **ファイルフィルタリング**: `include_patterns` と `exclude_patterns` は git の pathspec として渡されます。
+> 両方空の場合はすべてのファイルがレビュー対象になります。
 
 ## ビルド手順（Windows / Visual Studio）
 

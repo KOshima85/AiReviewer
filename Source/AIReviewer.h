@@ -26,4 +26,6 @@ private:
     int m_maxHigh;
     int m_maxMedium;
     int m_maxLow;
+    std::vector<std::string> m_includePatterns;
+    std::vector<std::string> m_excludePatterns;
 };
