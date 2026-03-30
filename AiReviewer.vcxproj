@@ -125,24 +125,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AIReviewer.cpp" />
-    <ClCompile Include="Exec.cpp" />
-    <ClCompile Include="LLMConnector.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="OllamaConnector.cpp" />
+    <ClCompile Include="Source/AIReviewer.cpp" />
+    <ClCompile Include="Source/Exec.cpp" />
+    <ClCompile Include="Source/LLMConnector.cpp" />
+    <ClCompile Include="Source/main.cpp" />
+    <ClCompile Include="Source/OllamaConnector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AIReviewer.h" />
-    <ClInclude Include="Config.h" />
-    <ClInclude Include="Define.h" />
-    <ClInclude Include="Exec.h" />
-    <ClInclude Include="LLMConnector.h" />
-    <ClInclude Include="OllamaConnector.h" />
-    <ClInclude Include="PayloadFile.h" />
+    <ClInclude Include="Source/AIReviewer.h" />
+    <ClInclude Include="Source/Config.h" />
+    <ClInclude Include="Source/Define.h" />
+    <ClInclude Include="Source/Exec.h" />
+    <ClInclude Include="Source/LLMConnector.h" />
+    <ClInclude Include="Source/OllamaConnector.h" />
+    <ClInclude Include="Source/PayloadFile.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
