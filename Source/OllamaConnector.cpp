@@ -70,6 +70,13 @@ std::string OllamaConnector::Call(const std::string& prompt)
 
     // URL を構築（ポートが 0 のような不正値の検証は事前に行ってください）
     std::string url = cfg->endpoint;
+
+    // endpoint が http:// または https:// で始まることを確認する
+    if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0) {
+        throw std::runtime_error(
+            "Invalid endpoint URL: must start with 'http://' or 'https://'. Got: " + url);
+    }
+
     // endpoint にポートが入っていない場合は付与
     if (!url.empty() && url.back() == '/') url.pop_back();
     url += ":" + std::to_string(cfg->port) + "/api/generate";

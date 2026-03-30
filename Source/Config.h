@@ -60,7 +60,13 @@ struct Config {
             if (!in) return cfg;
             nlohmann::json j;
             in >> j;
-            if (j.contains("endpoint") && j["endpoint"].is_string()) cfg.endpoint = j["endpoint"].get<std::string>();
+            if (j.contains("endpoint") && j["endpoint"].is_string()) {
+                std::string ep = j["endpoint"].get<std::string>();
+                // http:// または https:// で始まる場合のみ採用し、不正値はデフォルトを維持
+                if (ep.rfind("http://", 0) == 0 || ep.rfind("https://", 0) == 0) {
+                    cfg.endpoint = ep;
+                }
+            }
             if (j.contains("port") && (j["port"].is_number_integer() || j["port"].is_string())) {
                 if (j["port"].is_number_integer()) cfg.port = j["port"].get<int>();
                 else {
