@@ -28,7 +28,7 @@ struct Config {
 	bool use_staged_diff; // git diff で --staged を使うか
 
 	// デフォルト設定
-    static Config defaults() {
+    static Config Defaults() {
         return Config{
             "http://localhost",
             11434,
@@ -39,8 +39,8 @@ struct Config {
     }
 
     // 指定パスから読み込み。存在しなければデフォルトを書き出して返す。
-    static Config load_or_create(const std::string& path) {
-        Config cfg = defaults();
+    static Config LoadOrCreate(const std::string& path) {
+        Config cfg = Defaults();
         std::error_code ec;
         if (!fs::exists(path, ec)) {
             // ディレクトリは既に ensure_directory_exists で作られている想定
@@ -76,7 +76,7 @@ struct Config {
                 for (auto& it : j["review_focus"]) {
                     if (it.is_string()) cfg.review_focus.push_back(it.get<std::string>());
                 }
-                if (cfg.review_focus.empty()) cfg.review_focus = defaults().review_focus;
+                if (cfg.review_focus.empty()) cfg.review_focus = Defaults().review_focus;
             }
             if (j.contains("use_staged_diff") && j["use_staged_diff"].is_boolean()) {
                 cfg.use_staged_diff = j["use_staged_diff"].get<bool>();

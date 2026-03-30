@@ -7,7 +7,7 @@ LLMConnector::LLMConnector(const Config* cfg) :
 }
 
 // JSON 文字列を安全にエスケープするユーティリティ
-std::string LLMConnector::json_escape(const std::string& s)
+std::string LLMConnector::jsonEscape(const std::string& s)
 {
     std::string out;
     out.reserve(s.size() + 16);

@@ -8,7 +8,7 @@
 // PayloadFile: ペイロード用一時ファイルの RAII 管理
 // - ファイル作成・書き込み失敗時に std::runtime_error を投げる
 // - デストラクタでファイルを削除（削除失敗は無視）する
-// - 成功時にファイルを残したければ keep_file() を呼ぶ
+// - 成功時にファイルを残したければ KeepFile() を呼ぶ
 struct PayloadFile {
     std::string path;
     std::ofstream ofs;
@@ -20,28 +20,28 @@ struct PayloadFile {
         ofs.open(path, std::ios::binary | std::ios::trunc);
         if (!ofs) {
             int e = errno;
-            throw std::runtime_error(std::string("PayloadFile: failed to create file '") + path + "': " + errno_message(e));
+            throw std::runtime_error(std::string("PayloadFile: failed to create file '") + path + "': " + errnoMessage(e));
         }
     }
 
     // 書き込み（失敗時に例外）
-    void write_all(const std::string& data) {
+    void WriteAll(const std::string& data) {
         ofs << data;
         if (!ofs) {
             int e = errno;
-            throw std::runtime_error(std::string("PayloadFile: failed to write to '") + path + "': " + errno_message(e));
+            throw std::runtime_error(std::string("PayloadFile: failed to write to '") + path + "': " + errnoMessage(e));
         }
 
         // flush の失敗は明示的に検出して例外を投げる
         ofs.flush();
         if (!ofs) {
             int e = errno;
-            throw std::runtime_error(std::string("PayloadFile: failed to flush '") + path + "': " + errno_message(e));
+            throw std::runtime_error(std::string("PayloadFile: failed to flush '") + path + "': " + errnoMessage(e));
         }
     }
 
     // 一時ファイルを残す（デバッグ等で使う）
-    void keep_file() noexcept { keep = true; }
+    void KeepFile() noexcept { keep = true; }
 
     ~PayloadFile() {
         // デストラクタでは例外を外に出さない（リソース解放時の失敗は無視する）
@@ -67,7 +67,7 @@ struct PayloadFile {
 
 private:
     // errno から移植性のあるメッセージを取得するヘルパ
-    static inline std::string errno_message(int e) noexcept {
+    static inline std::string errnoMessage(int e) noexcept {
         try {
             std::error_code ec(e, std::generic_category());
             auto msg = ec.message();

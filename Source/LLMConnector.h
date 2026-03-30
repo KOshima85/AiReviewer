@@ -17,7 +17,7 @@ public:
 	virtual std::string Call(const std::string& prompt) = 0;
 	LLMConnector(const Config* cfg);
 protected:
-	static std::string json_escape(const std::string& s);
+	static std::string jsonEscape(const std::string& s);
 
 	const Config* cfg;
 

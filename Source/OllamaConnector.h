@@ -11,7 +11,7 @@ public:
 
 private:
 	char m_sModelName[256];
-	void SetModelName(const char* modelName);
-	std::string SanitizeModelName(std::string_view modelName);
+	void setModelName(const char* modelName);
+	std::string sanitizeModelName(std::string_view modelName);
 
 };

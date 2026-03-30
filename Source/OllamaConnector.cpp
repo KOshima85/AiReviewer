@@ -15,7 +15,7 @@ void OllamaConnector::Initialize()
         throw std::runtime_error("Config is null");
 	}
 
-    SetModelName(cfg->model.c_str());
+    setModelName(cfg->model.c_str());
 
     {
 	    // ollama list コマンドでモデルが存在するか確認する
@@ -34,9 +34,9 @@ std::string OllamaConnector::Call(const std::string& prompt)
         throw std::runtime_error("Config is null");
     }
 
-    std::string escaped; // JSON エスケープは既存の json_escape を使; 再定義は避けるため簡単に reuse
-    // 単純再利用: main.cpp 内の json_escape を使っている前提（関数は下に残す）
-    escaped = json_escape(prompt);
+    std::string escaped; // JSONエスケープは基底クラスの jsonEscape を使用
+    // 単純再利用: 基底クラスの jsonEscape を使用
+    escaped = jsonEscape(prompt);
     std::string payload =
         std::string("{\"model\":\"") + cfg->model +
         std::string("\",\"prompt\":\"") + escaped +
@@ -44,9 +44,9 @@ std::string OllamaConnector::Call(const std::string& prompt)
 
     PayloadFile payloadFile{ csDataDir + "/payload.json" };
 #ifdef _DEBUG
-    payloadFile.keep_file();
+    payloadFile.KeepFile();
 #endif
-    payloadFile.write_all(payload);
+    payloadFile.WriteAll(payload);
 
     // URL を構築（ポートが 0 のような不正値の検証は事前に行ってください）
     std::string url = cfg->endpoint;
@@ -70,7 +70,7 @@ OllamaConnector::OllamaConnector(const Config* cfg):
 }
 
 // 入力モデル名のサニタイズ処理を別関数に切り出し
-std::string OllamaConnector::SanitizeModelName(std::string_view modelName)
+std::string OllamaConnector::sanitizeModelName(std::string_view modelName)
 {
     // 空入力はデフォルトへ
     std::string src = modelName.empty() ? std::string(MODEL_NAME) : std::string(modelName);
@@ -126,9 +126,9 @@ std::string OllamaConnector::SanitizeModelName(std::string_view modelName)
     return normalized;
 }
 
-void OllamaConnector::SetModelName(const char* modelName)
+void OllamaConnector::setModelName(const char* modelName)
 {
-    std::string normalized = SanitizeModelName(modelName ? modelName : "");
+    std::string normalized = sanitizeModelName(modelName ? modelName : "");
     std::size_t maxlen = sizeof(m_sModelName) - 1;
     std::size_t copylen = std::min(maxlen, normalized.size());
     if (copylen > 0) {

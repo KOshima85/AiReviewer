@@ -103,7 +103,7 @@ int main() {
     }
 
     // 設定読み込み（無ければデフォルトを書き出す）
-    Config cfg = Config::load_or_create(csDataDir + "/config.json");
+    Config cfg = Config::LoadOrCreate(csDataDir + "/config.json");
     
     auto now = std::chrono::system_clock::now();
 
