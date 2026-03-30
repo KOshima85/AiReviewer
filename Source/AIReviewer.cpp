@@ -53,7 +53,7 @@ std::string AIReviewer::callModel(const std::string& prompt) {
 // persistResult:
 // - レビュー結果をファイルに保存する
 void AIReviewer::persistResult(const std::string& response) const {
-    std::filesystem::path out = std::filesystem::path(".aireviewr") / "review_result.txt";
+    std::filesystem::path out = std::filesystem::path(csDataDir) / "review_result.txt";
     std::ofstream ofs(out, std::ios::binary);
     if (!ofs) throw std::runtime_error("failed to write result");
     // ここは応答のパース/検証を行ってから保存しても良い
@@ -72,7 +72,6 @@ void AIReviewer::replaceAll(std::string& str, const std::string& from, const std
 
 void AIReviewer::AnalyzeResponse(const std::string response)
 {
-    std::string sResultFile = csDataDir + "/review_result.txt";
     try {
         auto j = json::parse(response);
         if (j.contains("response") && j["response"].is_string()) {
@@ -80,10 +79,7 @@ void AIReviewer::AnalyzeResponse(const std::string response)
             std::string parsed = j["response"].get<std::string>();
 
 			// 結果をファイルに保存する
-            std::ofstream out(sResultFile, std::ios::binary);
-            if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
-            out << parsed;
-            out.close();
+			persistResult(parsed);
 
 			// 危険度を色付けする（ターミナルで見やすくするための簡易的な方法）
             // TODO: 色分け処理を適切に分離する（別関数にする。必要であればhtmlタグにするなどできると良いかも）
@@ -97,10 +93,7 @@ void AIReviewer::AnalyzeResponse(const std::string response)
         else {
 			// "response" フィールドがない場合は全体をそのまま出力する
             std::cout << response << std::endl;
-            std::ofstream out(sResultFile, std::ios::binary);
-            if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
-            out << response;
-            out.close();
+            persistResult(response);
         }
         if (j.contains("done_reason") && j["done_reason"].is_string()) {
             std::string done = j["done_reason"].get<std::string>();
@@ -112,10 +105,7 @@ void AIReviewer::AnalyzeResponse(const std::string response)
     catch (const json::parse_error& e) {
         std::cerr << "JSON parse error: " << e.what() << std::endl;
         std::cout << response << std::endl;
-        std::ofstream out(sResultFile, std::ios::binary);
-        if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
-        out << response;
-        out.close();
+        persistResult(response);
     }
 }
 
