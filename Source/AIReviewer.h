@@ -11,7 +11,7 @@ public:
     void Initialize();
     // 1 回分のレビューを実行して結果文字列を返す（例外は呼び出し元で処理）
     std::string RunOnce();
-    void AnalyzeResponse(const std::string response);
+    void AnalyzeResponse(const std::string& response);
 
 private:
     std::string collectDiff() const;

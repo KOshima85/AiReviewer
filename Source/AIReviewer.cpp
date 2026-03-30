@@ -70,7 +70,7 @@ void AIReviewer::replaceAll(std::string& str, const std::string& from, const std
     }
 }
 
-void AIReviewer::AnalyzeResponse(const std::string response)
+void AIReviewer::AnalyzeResponse(const std::string& response)
 {
     try {
         auto j = json::parse(response);
