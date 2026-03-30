@@ -130,7 +130,7 @@ void analyzeResponse(const std::string response) {
 // プログラム開始時に表示するヘッダを出力する（視認性向上用）
 void printHeader() {
     std::cout << "=============================\n";
-    std::cout << " AI C++ Code Review\n";
+    std::cout << " AI Code Review\n";
     std::cout << "=============================\n\n";
 }
 
