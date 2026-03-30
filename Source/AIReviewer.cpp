@@ -1,6 +1,7 @@
 #include "AIReviewer.h"
 #include "Exec.h"         // getGitDiff 用の exec 等を利用
 #include "PayloadFile.h"  // 既存のまま一時ファイルを使う場合
+#include "StringUtils.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -58,16 +59,6 @@ void AIReviewer::persistResult(const std::string& response) const {
     if (!ofs) throw std::runtime_error("failed to write result");
     // ここは応答のパース/検証を行ってから保存しても良い
     ofs << response;
-}
-
-void AIReviewer::replaceAll(std::string& str, const std::string& from, const std::string& to)
-{
-	// とりあえず単純な置換ループで実装（大きな文字列や頻繁な置換には効率的な方法が必要）
-    size_t pos = 0;
-    while ((pos = str.find(from, pos)) != std::string::npos) {
-        str.replace(pos, from.length(), to);
-        pos += to.length(); // 無限ループ防止
-    }
 }
 
 void AIReviewer::AnalyzeResponse(const std::string& response)

@@ -19,8 +19,6 @@ private:
     std::string callModel(const std::string& prompt);
     void persistResult(const std::string& response) const;
 
-	static void replaceAll(std::string& str, const std::string& from, const std::string& to); // TODO: これはユーティリティ関数として別の場所に移すべき
-
     LLMConnector& m_connector;
     std::vector<std::string> m_focus;
 	bool m_useStagedDiff;
