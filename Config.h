@@ -25,6 +25,7 @@ struct Config {
     int port;             // 例: 11434
     std::string model;    // 例: "gemma3:4b"
     std::vector<std::string> review_focus; // レビューの焦点
+	bool use_staged_diff; // git diff で --staged を使うか
 
 	// デフォルト設定
     static Config defaults() {
@@ -32,7 +33,8 @@ struct Config {
             "http://localhost",
             11434,
             MODEL_NAME,
-            { "メモリ安全性", "未定義動作", "例外安全性", "性能", "可読性","SOLID原則"}
+            { "メモリ安全性", "未定義動作", "例外安全性", "性能", "可読性","SOLID原則"},
+			true
         };
     }
 
@@ -48,6 +50,7 @@ struct Config {
             j["port"] = cfg.port;
             j["model"] = cfg.model;
             j["review_focus"] = cfg.review_focus;
+			j["use_staged_diff"] = cfg.use_staged_diff;
             std::ofstream out(path, std::ios::binary);
             if (out) out << j.dump(2);
             return cfg;
@@ -74,6 +77,9 @@ struct Config {
                     if (it.is_string()) cfg.review_focus.push_back(it.get<std::string>());
                 }
                 if (cfg.review_focus.empty()) cfg.review_focus = defaults().review_focus;
+            }
+            if (j.contains("use_staged_diff") && j["use_staged_diff"].is_boolean()) {
+                cfg.use_staged_diff = j["use_staged_diff"].get<bool>();
             }
         }
         catch (...) {

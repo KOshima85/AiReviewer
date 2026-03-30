@@ -18,8 +18,10 @@ void AIReviewer::Initialize() {
 }
 
 std::string AIReviewer::collectDiff() const {
-    // 既存の exec を使う
-    return exec("git diff --staged -w");
+    if (m_cfg.use_staged_diff) {
+        return exec("git diff --staged -w");
+    }
+    return exec("git diff -w");
 }
 
 std::string AIReviewer::buildPrompt(const std::string& diff) const {
