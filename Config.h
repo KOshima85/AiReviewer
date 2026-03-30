@@ -17,7 +17,7 @@ namespace fs = std::experimental::filesystem;
 
 using nlohmann::json;
 
-#define MODEL_NAME "gemma3:4b"
+inline constexpr char MODEL_NAME[] = "gemma3:12b";
 
 // ----- Config: 設定ファイルの読み書きと構造 -----
 struct Config {

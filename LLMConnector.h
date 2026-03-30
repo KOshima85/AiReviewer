@@ -12,6 +12,7 @@
 class LLMConnector
 {
 public:
+	virtual ~LLMConnector() = default;
 	virtual void Initilize() = 0;
 	virtual std::string Call(const std::string& prompt) = 0;
 	LLMConnector(const Config* cfg);
