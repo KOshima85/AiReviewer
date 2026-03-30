@@ -12,6 +12,9 @@ public:
 
 private:
 	char m_sModelName[256];
-    // 修正後
-    void SetModelName(const char* modelName) { strncpy_s(m_sModelName, sizeof(m_sModelName), modelName, _TRUNCATE); }
+	void SetModelName(const char* modelName);
+	// 文字列のサニタイズ関数
+	//char sanitizeModelName(const char* modelName);
+	std::string SanitizeModelName(std::string_view modelName);
+
 };
