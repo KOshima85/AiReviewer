@@ -1,8 +1,8 @@
 # AI C++ Code Review (AiReviewer)
 
 ## 概要
-- ステージされた git 差分を取得し、ローカルで稼働する LLM（デフォルトは Ollama）へ送って自動コードレビューを行うツール。
-- レビュー結果はコンソールに出力され、`.aireviewr/review_result.txt` に保存されます。
+- ステージされた git 差分を取得し、ローカルで稼働する LLM（デフォルトは Ollama）へ送って自動コードレビューを行うツールです。
+- レビュー結果はコンソールに出力されます。また`.aireviewr/review_result.txt` にも保存されます。
 - ローカルLLMを利用することで完全にローカルで完結します。
 
 ## 主な特徴
@@ -10,11 +10,11 @@
 
 ## 必須要件
 
+- [Ollama](https://www.ollama.com/) ローカルLLM。公式サイトからインストールしてください。
 - `C++20` 対応コンパイラ（MSVC / g++ / clang++）
 - `curl`（現在は外部コマンドで HTTP リクエストを発行）
 - `git`（差分取得のため）
-- ローカルの Ollama（デフォルト設定は http://localhost:11434）
-- nlohmann/json（ヘッダオンリー）
+- nlohmann/json（json周りの処理で利用。ヘッダオンリー）
 
 ## 設定ファイル
 
@@ -27,13 +27,13 @@
   "port": 11434, // Ollama のデフォルトポート.セキュリティ要件に合わせて変更・監視してください
   "model": "gemma3:4b", // 使用するモデル名
   "review_focus": ["メモリ安全性","未定義動作","例外安全性","性能","可読性","SOLID原則"],
-  "use_staged_diff": true, // ステージされた差分を使用するか（true）、ワーキングツリーの差分を使用するか（false）
+  "use_staged_diff": true, // **ステージされた**差分を使用するか（true）、ワーキングツリーの差分を使用するか（false）
 }
 ```
 
 ## ビルド手順（Windows / Visual Studio）
 
-1. 1. ソリューションを Visual Studio で開く
+1. ソリューションを Visual Studio で開く
 2. nlohmann/json のインクルードパスを追加（必要な場合）
 3. Build > Build Solution
 4. 必要であれば`aireviewr.exe`のパスを環境変数に追加 
@@ -51,6 +51,10 @@
 ## その他
 
 - モデルについて: 
-    - gemma3:12b RTX 3060(VRAM12GB) で応答時間が20～30秒ほどになります。
-    - gemma3:4b 5～10秒ほどで応答が得られます。
+    - gemma3:12b RTX 3060(VRAM12GB) で応答時間が20～30秒(使用GPUメモリ10.3GB)ほどになります。
+    - gemma3:4b 5～10秒(使用GPUメモリ5.2GB)ほどで応答が得られます。
     - Thinking 対応のモデルは返答の品質が向上しますが、応答時間も長くなります。
+
+- tools/AIReview.bat
+    - 実行用のbatファイルです。実行したいプロジェクトルートにコピーして使用してください。
+    - 環境に合わせてパスを変更してください。
