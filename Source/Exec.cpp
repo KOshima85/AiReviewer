@@ -14,16 +14,15 @@
 #include <sys/types.h>
 #endif
 
-#define COUNT_LIMIT 1000 // *10 msec
-
 // exec:
 // 与えられたシェルコマンドを実行し、その標準出力を文字列として返す。
 // - 内部で popen を使ってプロセスを開き、fread で出力を読み取る。
 // - popen に失敗した場合は std::runtime_error を投げる。
 // - 固定長バッファを使い、結果を result に追加して返す。
-// - ループ中にデータが得られない場合は短時間スリープして CPU スピンを防止する。
+// - データが届かない状態が続いた際、timeout (ms) を超えたら警告を出して打ち切る。
+//   timeout == 0 の場合はタイムアウトなし（プロセス終了まで待つ）。
 // 注意: 大きな出力やバイナリデータの扱いには注意が必要。
-std::string exec(const std::string& cmd, bool useLimit) {
+std::string exec(const std::string& cmd, std::chrono::milliseconds timeout) {
     std::vector<char> buffer(4096);
     std::string result;
     result.reserve(8192);
@@ -33,14 +32,16 @@ std::string exec(const std::string& cmd, bool useLimit) {
     FILE* fp = popen(cmd.c_str(), "r");
     if (!fp) throw std::runtime_error("popen() failed");
 
-    // スリープ時間（データが得られないときに短時間待つ）
-    constexpr auto kIdleSleep = std::chrono::milliseconds(10);
-	int idleCount = 0;
+    // データが届かないときのポーリング間隔
+    constexpr auto kPollInterval = std::chrono::milliseconds(10);
+    // アイドル（データなし）状態の累計時間
+    std::chrono::milliseconds idleElapsed{0};
+
     while (true) {
         size_t n = std::fread(buffer.data(), 1, buffer.size(), fp);
         if (n > 0) {
             result.append(buffer.data(), n);
-            idleCount = 0; // データを受信したのでアイドルカウントをリセット
+            idleElapsed = std::chrono::milliseconds{0}; // データ受信でアイドル時間をリセット
         }
 
         if (n < buffer.size()) {
@@ -49,18 +50,19 @@ std::string exec(const std::string& cmd, bool useLimit) {
                 pclose(fp);
                 throw std::runtime_error("Error reading from pipe");
             }
-            // n < buffer.size() だが feof/ferror でない場合は一時的にデータが来ていない。
-            // アイドルカウントを進め、上限を超えたらタイムアウト警告を出す。
-            idleCount++;
-            if (useLimit && idleCount > COUNT_LIMIT) {
-                std::cerr << "Warning: no data received for " << (idleCount * kIdleSleep.count()) << " ms\n";
+            // データが届いていない（一時的な停止）: 少し待ってリトライ
+            std::this_thread::sleep_for(kPollInterval);
+            idleElapsed += kPollInterval;
+
+            // タイムアウトが設定されており、アイドル時間が上限を超えたら警告して打ち切る
+            if (timeout.count() > 0 && idleElapsed >= timeout) {
+                std::cerr << "Warning: exec() timed out after " << idleElapsed.count() << " ms with no data\n";
                 break;
             }
-            std::this_thread::sleep_for(kIdleSleep);
             continue;
         }
 
-        // n == buffer.size() の場合はさらに読み続ける（バッファが満杯）
+        // n == buffer.size() の場合はバッファが満杯なのでそのまま読み続ける
     }
 
     int rc = pclose(fp);

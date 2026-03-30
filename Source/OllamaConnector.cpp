@@ -23,7 +23,7 @@ void OllamaConnector::Initialize()
         if (psOutput.find(m_sModelName) == std::string::npos) {
 		    // モデルが存在しない場合はpullしてくる
             std::cout << "Pulling " << m_sModelName << " model...\n";
-		    exec(std::string("ollama pull ") + m_sModelName, false); // モデルDLは時間がかかるためlimitを無視させる
+		    exec(std::string("ollama pull ") + m_sModelName); // モデルDLは時間がかかるためタイムアウトなし
         }
     }
 }
