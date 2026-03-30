@@ -58,6 +58,16 @@ void AIReviewer::persistResult(const std::string& response) const {
     ofs << response;
 }
 
+void AIReviewer::replaceAll(std::string& str, const std::string& from, const std::string& to)
+{
+	// とりあえず単純な置換ループで実装（大きな文字列や頻繁な置換には効率的な方法が必要）
+    size_t pos = 0;
+    while ((pos = str.find(from, pos)) != std::string::npos) {
+        str.replace(pos, from.length(), to);
+        pos += to.length(); // 無限ループ防止
+    }
+}
+
 void AIReviewer::AnalyzeResponse(const std::string response)
 {
     std::string sResultFile = csDataDir + "/review_result.txt";
@@ -66,11 +76,21 @@ void AIReviewer::AnalyzeResponse(const std::string response)
         if (j.contains("response") && j["response"].is_string()) {
 			// "response" フィールドがある場合はそこからレビュー結果を取り出す
             std::string parsed = j["response"].get<std::string>();
-            std::cout << parsed << std::endl;
+
+			// 結果をファイルに保存する
             std::ofstream out(sResultFile, std::ios::binary);
             if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
             out << parsed;
             out.close();
+
+			// 危険度を色付けする（ターミナルで見やすくするための簡易的な方法）
+            // TODO: 色分け処理を適切に分離する（別関数にする。必要であればhtmlタグにするなどできると良いかも）
+            // TODO: 危険度をカウントして一定値以下ならコミットできるようにする等の機能も検討したい
+            replaceAll(parsed, "HIGH", "\033[31mHIGH\033[0m");
+            replaceAll(parsed, "MEDIUM", "\033[33mMEDIUM\033[0m");
+            replaceAll(parsed, "LOW", "\033[32mLOW\033[0m");
+
+            std::cout << parsed << std::endl;
         }
         else {
 			// "response" フィールドがない場合は全体をそのまま出力する
