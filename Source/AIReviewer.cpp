@@ -28,7 +28,7 @@ std::string AIReviewer::collectDiff() const {
 
 std::string AIReviewer::buildPrompt(const std::string& diff) const {
     std::stringstream prompt;
-    prompt << "あなたは上級のC++エンジニアです。\nレビューの焦点:\n";
+    prompt << "あなたは上級のC++エンジニアです。\n";
     prompt << "以下の git diff をレビューしてください。\n";
     prompt << "レビューの焦点:\n";
     for (auto& f : m_focus) prompt << "- " << f << "\n";

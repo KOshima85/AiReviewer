@@ -40,6 +40,7 @@ std::string exec(const std::string& cmd, bool useLimit) {
         size_t n = std::fread(buffer.data(), 1, buffer.size(), fp);
         if (n > 0) {
             result.append(buffer.data(), n);
+            idleCount = 0; // データを受信したのでアイドルカウントをリセット
         }
 
         if (n < buffer.size()) {
@@ -48,21 +49,18 @@ std::string exec(const std::string& cmd, bool useLimit) {
                 pclose(fp);
                 throw std::runtime_error("Error reading from pipe");
             }
-            // n < buffer.size() だが feof/ferror でない場合は一時的にデータが来ていない可能性がある。
-            // ここで短時間スリープして CPU を消費し続けることを防ぐ。
+            // n < buffer.size() だが feof/ferror でない場合は一時的にデータが来ていない。
+            // アイドルカウントを進め、上限を超えたらタイムアウト警告を出す。
+            idleCount++;
+            if (useLimit && idleCount > COUNT_LIMIT) {
+                std::cerr << "Warning: no data received for " << (idleCount * kIdleSleep.count()) << " ms\n";
+                break;
+            }
             std::this_thread::sleep_for(kIdleSleep);
             continue;
         }
 
         // n == buffer.size() の場合はさらに読み続ける（バッファが満杯）
-        // ループ継続
-
-        idleCount++;
-        if(useLimit && idleCount > COUNT_LIMIT) { // 例: 連続でデータが来ない場合は何らかの問題がある可能性があるので警告を出す
-            std::cerr << "Warning: no data received for " << (idleCount * kIdleSleep.count()) << " ms\n";
-			break; 
-        }
-
     }
 
     int rc = pclose(fp);
