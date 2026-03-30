@@ -155,6 +155,10 @@ int main() {
 
 		reviewer->Initialize();
         std::string response = reviewer->RunOnce();
+        if(response.empty()) {
+			// 変更が無い場合は空文字列が返る想定なので、そのまま終了する
+            return 0;
+		}
 		analyzeResponse(response);
 
     } catch (const std::exception& e) {
