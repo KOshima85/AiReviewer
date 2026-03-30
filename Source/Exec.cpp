@@ -27,7 +27,9 @@ std::string exec(const std::string& cmd, bool useLimit) {
     std::vector<char> buffer(4096);
     std::string result;
     result.reserve(8192);
-
+#ifdef _DEBUG
+	std::cout << "Executing command: " << cmd << std::endl;
+#endif
     FILE* fp = popen(cmd.c_str(), "r");
     if (!fp) throw std::runtime_error("popen() failed");
 

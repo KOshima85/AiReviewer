@@ -22,26 +22,6 @@ void OllamaConnector::Initilize()
 		    exec(std::string("ollama pull ") + m_sModelName, false); // モデルDLは時間がかかるためlimitを無視させる
         }
     }
-    {
-        // ollama ps コマンドでモデルが起動しているか確認する
-        std::string psOutput = exec("ollama ps");
-        if (psOutput.find(m_sModelName) == std::string::npos) {
-            // codellama が起動してない場合はモデルをserveで起動する
-            std::cout << "Starting " << m_sModelName << " model...\n";
-            exec(std::string("ollama serve ") + m_sModelName + " &");
-            // 起動後、少し待ってから再度 ps を確認する
-            bool modelStarted = false;
-            for (int i = 0; i < 5; ++i) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                psOutput = exec("ollama ps");
-                if (psOutput.find(m_sModelName) != std::string::npos) {
-                    modelStarted = true;
-                    break;
-
-                }
-            }
-        }
-    }
 }
 
 std::string OllamaConnector::Call(const std::string& prompt)
