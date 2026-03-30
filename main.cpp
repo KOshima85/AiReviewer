@@ -147,7 +147,7 @@ int main() {
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     std::string timestamp = std::to_string(now_c);
 
-	std::unique_ptr<OllamaConnector> connector (new OllamaConnector());
+	std::unique_ptr<OllamaConnector> connector (new OllamaConnector(cfg));
     std::unique_ptr<AIReviewer> reviewer(new AIReviewer(cfg, *connector));
 
     try {

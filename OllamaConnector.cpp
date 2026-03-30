@@ -7,28 +7,40 @@
 
 void OllamaConnector::Initilize()
 {
+    SetModelName(cfg.model.c_str());
 
-    // ollama ps コマンドでモデルが起動しているか確認する
-    std::string psOutput = exec("ollama ps");
-    if (psOutput.find(m_sModelName) == std::string::npos) {
-        // codellama が起動してない場合はモデルをserveで起動する
-        std::cout << "Starting " << m_sModelName << " model...\n";
-        exec(std::string("ollama serve ") + m_sModelName + " &");
-        // 起動後、少し待ってから再度 ps を確認する
-        bool modelStarted = false;
-        for (int i = 0; i < 5; ++i) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            psOutput = exec("ollama ps");
-            if (psOutput.find(m_sModelName) != std::string::npos) {
-                modelStarted = true;
-                break;
+    {
+	    // ollama list コマンドでモデルが存在するか確認する
+        std::string psOutput = exec("ollama list");
+        if (psOutput.find(m_sModelName) == std::string::npos) {
+		    // モデルが存在しない場合はpullしてくる
+            std::cout << "Pulling " << m_sModelName << " model...\n";
+		    exec(std::string("ollama pull ") + m_sModelName);
+        }
+    }
+    {
+        // ollama ps コマンドでモデルが起動しているか確認する
+        std::string psOutput = exec("ollama ps");
+        if (psOutput.find(m_sModelName) == std::string::npos) {
+            // codellama が起動してない場合はモデルをserveで起動する
+            std::cout << "Starting " << m_sModelName << " model...\n";
+            exec(std::string("ollama serve ") + m_sModelName + " &");
+            // 起動後、少し待ってから再度 ps を確認する
+            bool modelStarted = false;
+            for (int i = 0; i < 5; ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                psOutput = exec("ollama ps");
+                if (psOutput.find(m_sModelName) != std::string::npos) {
+                    modelStarted = true;
+                    break;
 
+                }
             }
         }
     }
 }
 
-std::string OllamaConnector::Call(const std::string& prompt, const Config& cfg)
+std::string OllamaConnector::Call(const std::string& prompt)
 {
     std::string escaped; // JSON エスケープは既存の json_escape を使; 再定義は避けるため簡単に reuse
     // 単純再利用: main.cpp 内の json_escape を使っている前提（関数は下に残す）
@@ -58,6 +70,12 @@ std::string OllamaConnector::Call(const std::string& prompt, const Config& cfg)
     std::string response = exec(cmd);
     return response;
 }
+
+OllamaConnector::OllamaConnector(const Config& cfg):
+	LLMConnector(cfg)
+{
+}
+
 
 
 

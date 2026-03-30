@@ -45,7 +45,7 @@ std::string AIReviewer::buildPrompt(const std::string& diff) const {
 
 std::string AIReviewer::callModel(const std::string& prompt) {
     // 既存の Connector を使う（Config を渡す）
-    return m_connector.Call(prompt, m_cfg);
+    return m_connector.Call(prompt);
 }
 
 // persistResult:

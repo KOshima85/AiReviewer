@@ -13,9 +13,12 @@ class LLMConnector
 {
 public:
 	virtual void Initilize() = 0;
-	virtual std::string Call(const std::string& prompt, const Config& cfg) = 0;
-
+	virtual std::string Call(const std::string& prompt) = 0;
+	LLMConnector(const Config& cfg);
 protected:
 	static std::string json_escape(const std::string& s);
+
+	Config cfg;
+
 };
 

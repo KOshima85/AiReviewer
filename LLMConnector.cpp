@@ -1,6 +1,10 @@
 #include "LLMConnector.h"
 
 
+LLMConnector::LLMConnector(const Config& cfg) :
+    cfg(cfg)
+{
+}
 
 // JSON 文字列を安全にエスケープするユーティリティ
 std::string LLMConnector::json_escape(const std::string& s)
