@@ -6,7 +6,7 @@
 
 class AIReviewer {
 public:
-    AIReviewer(const Config& cfg, LLMConnector& connector) noexcept;
+    AIReviewer(const Config* cfg, LLMConnector& connector) noexcept;
     // 初期化（必要ならモデル起動など）
     void Initialize();
     // 1 回分のレビューを実行して結果文字列を返す（例外は呼び出し元で処理）
@@ -18,7 +18,7 @@ private:
     std::string callModel(const std::string& prompt);
     void persistResult(const std::string& response) const;
 
-    const Config& m_cfg;
     LLMConnector& m_connector;
     std::vector<std::string> m_focus;
+	bool m_useStagedDiff;
 };

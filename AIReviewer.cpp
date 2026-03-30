@@ -8,8 +8,8 @@
 
 using nlohmann::json;
 
-AIReviewer::AIReviewer(const Config& cfg, LLMConnector& connector) noexcept
-    : m_cfg(cfg), m_connector(connector), m_focus(cfg.review_focus)
+AIReviewer::AIReviewer(const Config* cfg, LLMConnector& connector) noexcept
+	:m_connector(connector), m_focus(cfg->review_focus), m_useStagedDiff(cfg->use_staged_diff)
 {
 }
 
@@ -18,7 +18,7 @@ void AIReviewer::Initialize() {
 }
 
 std::string AIReviewer::collectDiff() const {
-    if (m_cfg.use_staged_diff) {
+    if (m_useStagedDiff) {
         return exec("git diff --staged -w");
     }
     return exec("git diff -w");

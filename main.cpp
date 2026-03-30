@@ -142,13 +142,13 @@ int main() {
 
     // 設定読み込み（無ければデフォルトを書き出す）
     Config cfg = Config::load_or_create(csDataDir + "/config.json");
-
+    
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     std::string timestamp = std::to_string(now_c);
 
-	std::unique_ptr<OllamaConnector> connector (new OllamaConnector(cfg));
-    std::unique_ptr<AIReviewer> reviewer(new AIReviewer(cfg, *connector));
+	std::unique_ptr<OllamaConnector> connector (new OllamaConnector(&cfg));  
+    std::unique_ptr<AIReviewer> reviewer(new AIReviewer(&cfg, *connector));
 
     try {
         printHeader();

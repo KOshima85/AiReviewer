@@ -1,7 +1,7 @@
 #include "LLMConnector.h"
 
 
-LLMConnector::LLMConnector(const Config& cfg) :
+LLMConnector::LLMConnector(const Config* cfg) :
     cfg(cfg)
 {
 }
