@@ -58,6 +58,45 @@ void AIReviewer::persistResult(const std::string& response) const {
     ofs << response;
 }
 
+void AIReviewer::AnalyzeResponse(const std::string response)
+{
+    std::string sResultFile = csDataDir + "/review_result.txt";
+    try {
+        auto j = json::parse(response);
+        if (j.contains("response") && j["response"].is_string()) {
+			// "response" フィールドがある場合はそこからレビュー結果を取り出す
+            std::string parsed = j["response"].get<std::string>();
+            std::cout << parsed << std::endl;
+            std::ofstream out(sResultFile, std::ios::binary);
+            if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
+            out << parsed;
+            out.close();
+        }
+        else {
+			// "response" フィールドがない場合は全体をそのまま出力する
+            std::cout << response << std::endl;
+            std::ofstream out(sResultFile, std::ios::binary);
+            if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
+            out << response;
+            out.close();
+        }
+        if (j.contains("done_reason") && j["done_reason"].is_string()) {
+            std::string done = j["done_reason"].get<std::string>();
+            if (done != "stop") {
+                std::cerr << "Warning: done_reason = " << done << " (response may be truncated or stopped for another reason)\n";
+            }
+        }
+    }
+    catch (const json::parse_error& e) {
+        std::cerr << "JSON parse error: " << e.what() << std::endl;
+        std::cout << response << std::endl;
+        std::ofstream out(sResultFile, std::ios::binary);
+        if (!out) throw std::runtime_error("failed to open result file: " + sResultFile);
+        out << response;
+        out.close();
+    }
+}
+
 std::string AIReviewer::RunOnce() {
     std::cout << "Collecting git diff...\n";
     auto diff = collectDiff();

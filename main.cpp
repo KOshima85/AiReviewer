@@ -80,54 +80,18 @@ namespace fs = std::experimental::filesystem;
 #include "OllamaConnector.h"
 #include "AIReviewer.h"
 
-// ディレクトリ作成（存在すれば OK）
-static bool ensure_directory_exists(const std::string& dir) {
+// ディレクトリ存在確認
+static bool ensureDirectoryExists(const std::string& dir) {
     std::error_code ec;
     if (fs::exists(dir, ec)) {
         return fs::is_directory(dir, ec);
     }
+	// ディレクトリが存在しない場合は作成する
     return fs::create_directories(dir, ec);
 }
 
-void analyzeResponse(const std::string response) {
-
-    std::string sResultFile = csDataDir + "/review_result.txt";
-    try {
-        auto j = json::parse(response);
-        if (j.contains("response") && j["response"].is_string()) {
-            std::string parsed = j["response"].get<std::string>();
-            std::cout << parsed << std::endl;
-            std::ofstream out(sResultFile, std::ios::binary);
-            if (!out) throw std::runtime_error("failed to open payload file: " + sResultFile);
-            out << parsed;
-            out.close();
-        }
-        else {
-            std::cout << response << std::endl;
-            std::ofstream out(sResultFile, std::ios::binary);
-            if (!out) throw std::runtime_error("failed to open payload file: " + sResultFile);
-            out << response;
-            out.close();
-        }
-        if (j.contains("done_reason") && j["done_reason"].is_string()) {
-            std::string done = j["done_reason"].get<std::string>();
-            if (done != "stop") {
-                std::cerr << "Warning: done_reason = " << done << " (response may be truncated or stopped for another reason)\n";
-            }
-        }
-    }
-    catch (const json::parse_error& e) {
-        std::cerr << "JSON parse error: " << e.what() << std::endl;
-        std::cout << response << std::endl;
-        std::ofstream out(sResultFile, std::ios::binary);
-        if (!out) throw std::runtime_error("failed to open payload file: " + sResultFile);
-        out << response;
-        out.close();
-    }
-}
-
 // printHeader:
-// プログラム開始時に表示するヘッダを出力する（視認性向上用）
+// プログラム開始時に表示するヘッダを出力する
 void printHeader() {
     std::cout << "=============================\n";
     std::cout << " AI Code Review\n";
@@ -135,7 +99,7 @@ void printHeader() {
 }
 
 int main() {
-    if (!ensure_directory_exists(csDataDir)) {
+    if (!ensureDirectoryExists(csDataDir)) {
         std::cerr << "Failed to create data directory: " << csDataDir << "\n";
         return 1;
     }
@@ -159,7 +123,7 @@ int main() {
 			// 変更が無い場合は空文字列が返る想定なので、そのまま終了する
             return 0;
 		}
-		analyzeResponse(response);
+        reviewer->AnalyzeResponse(response);
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
