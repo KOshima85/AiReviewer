@@ -155,8 +155,6 @@ std::string AIReviewer::RunOnce() {
     std::cout << "Sending to LLM...\n";
     auto resp = callModel(prompt);
 
-    persistResult(resp);
-
 #ifdef _DEBUG
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
