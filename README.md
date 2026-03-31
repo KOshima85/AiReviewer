@@ -62,11 +62,18 @@
 3. Build > Build Solution
 4. 必要であれば`aireviewr.exe`のパスを環境変数に追加 
 
+## コマンドライン引数
+
+| 引数 | 説明 |
+|-----|------|
+| `--history <N>` | 直近 N コミットを順番にレビュー |
+
 ## 実行手順
+
 1. git リポジトリのルートへ移動: `cd <path_to_repo>`
-1. 変更をステージ： `git add <files>`
-2. 実行ファイルを起動： `{path/to}/aireviewr`（Windows は実行ファイル名）
-3. 出力： コンソール表示および `.aireviewr/review_result.txt` に結果が保存されます。デバッグビルド時は `.aireviewr/debug_response_<timestamp>.txt` が出力されることがあります。
+2. 変更をステージ： `git add <files>`
+3. 実行ファイルを起動： `{path/to}/aireviewr`（Windows は実行ファイル名）
+4. 出力： コンソール表示および `.aireviewr/review_result.txt` に結果が保存されます。デバッグビルド時は `.aireviewr/debug_response_<timestamp>.txt` が出力されることがあります。
 
 トラブルシューティング
 - Ollama が応答しない: `ollama ps` でモデル状況を確認し、必要なら `ollama serve <model>` を起動

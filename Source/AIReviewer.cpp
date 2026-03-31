@@ -8,6 +8,7 @@
 #include <sstream>
 #include <chrono>
 #include <iostream>
+#include <algorithm>
 
 using nlohmann::json;
 
@@ -166,4 +167,125 @@ std::string AIReviewer::RunOnce() {
 #endif
 
     return resp;
+}
+
+std::vector<std::pair<std::string, std::string>> AIReviewer::collectCommits(int n) const {
+    std::string cmd = "git log -" + std::to_string(n) + " --format=\"%H %s\"";
+    std::string output = exec(cmd);
+
+    std::vector<std::pair<std::string, std::string>> commits;
+    std::istringstream ss(output);
+    std::string line;
+    while (std::getline(ss, line)) {
+        // 末尾の \r を除去（Windows 環境対策）
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.size() < 41) continue; // SHA(40文字) + スペース 未満は無視
+        std::string sha = line.substr(0, 40);
+        std::string subject = line.size() > 41 ? line.substr(41) : "";
+        commits.emplace_back(sha, subject);
+    }
+    return commits;
+}
+
+std::string AIReviewer::getCommitDiff(const std::string& sha) const {
+    std::string cmd = "git show -p --no-color " + sha;
+
+    // include/exclude パターンが指定されている場合は git pathspec として追加する
+    bool hasFilter = false;
+    for (const auto& p : m_includePatterns) {
+        if (isValidGlobPattern(p)) hasFilter = true;
+    }
+    for (const auto& p : m_excludePatterns) {
+        if (isValidGlobPattern(p)) hasFilter = true;
+    }
+    if (hasFilter) {
+        cmd += " --";
+        for (const auto& p : m_includePatterns) {
+            if (isValidGlobPattern(p)) cmd += " \"" + p + "\"";
+        }
+        for (const auto& p : m_excludePatterns) {
+            if (isValidGlobPattern(p)) cmd += " \":(exclude)" + p + "\"";
+        }
+    }
+
+    return exec(cmd);
+}
+
+void AIReviewer::persistHistoryResult(const std::string& content) const {
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::string timestamp = std::to_string(now_c);
+    std::filesystem::path out = std::filesystem::path(csDataDir) / ("history_review_" + timestamp + ".txt");
+    std::ofstream ofs(out, std::ios::binary);
+    if (!ofs) throw std::runtime_error("failed to write history result");
+    ofs << content;
+}
+
+int AIReviewer::RunHistory(int n) {
+    auto commits = collectCommits(n);
+    if (commits.empty()) {
+        std::cout << "No commits found.\n";
+        return 0;
+    }
+
+    int totalCommits = static_cast<int>(commits.size());
+    std::cout << "Reviewing " << totalCommits << " commit(s)...\n\n";
+
+    int maxExitCode = 0;
+    std::ostringstream historyLog;
+
+    for (int i = 0; i < totalCommits; ++i) {
+        const auto& [sha, subject] = commits[i];
+        std::string shortSha = sha.substr(0, 7);
+
+        std::cout << "------------------------------------------------------------\n";
+        std::cout << "[" << (i + 1) << "/" << totalCommits << "] "
+                  << shortSha << " " << subject << "\n";
+        std::cout << "------------------------------------------------------------\n";
+
+        historyLog << "============================================================\n";
+        historyLog << "[" << (i + 1) << "/" << totalCommits << "] "
+                   << shortSha << " " << subject << "\n";
+        historyLog << "============================================================\n";
+
+        std::string diff = getCommitDiff(sha);
+        if (diff.empty()) {
+            std::cout << "  (no diff, skipping)\n\n";
+            historyLog << "(no diff, skipped)\n\n";
+            continue;
+        }
+
+        std::cout << "Building prompt...\n";
+        auto prompt = buildPrompt(diff);
+
+        std::cout << "Sending to LLM...\n";
+        auto resp = callModel(prompt);
+
+        // レスポンスをファイルに一時保存（既存の persistResult を流用）
+        persistResult(resp);
+
+        int code = AnalyzeResponse(resp);
+        maxExitCode = std::max(maxExitCode, code);
+
+        // 履歴ログにも追記（ANSI カラーなしのテキストとして保存）
+        try {
+            auto j = json::parse(resp);
+            if (j.contains("response") && j["response"].is_string()) {
+                historyLog << j["response"].get<std::string>() << "\n\n";
+            } else {
+                historyLog << resp << "\n\n";
+            }
+        } catch (...) {
+            historyLog << resp << "\n\n";
+        }
+
+        std::cout << "\n";
+    }
+
+    std::cout << "------------------------------------------------------------\n";
+    std::cout << "History review complete. (" << totalCommits << " commits)\n";
+
+    persistHistoryResult(historyLog.str());
+
+    return maxExitCode;
 }

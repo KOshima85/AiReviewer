@@ -96,10 +96,36 @@ void printHeader() {
     std::cout << "=============================\n\n";
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     if (!ensureDirectoryExists(csDataDir)) {
         std::cerr << "Failed to create data directory: " << csDataDir << "\n";
         return 1;
+    }
+
+    // --history N オプションのパース
+    int historyCount = 0; // 0 = staged モード（通常動作）
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--history") {
+            if (i + 1 >= argc) {
+                std::cerr << "Error: --history requires a positive integer argument.\n";
+                std::cerr << "Usage: aireviewr --history <N>\n";
+                return 1;
+            }
+            try {
+                historyCount = std::stoi(argv[++i]);
+            } catch (...) {
+                historyCount = 0;
+            }
+            if (historyCount <= 0) {
+                std::cerr << "Error: --history requires a positive integer. Got: " << argv[i] << "\n";
+                return 1;
+            }
+        } else {
+            std::cerr << "Error: Unknown argument: " << arg << "\n";
+            std::cerr << "Usage: aireviewr [--history <N>]\n";
+            return 1;
+        }
     }
 
     // 設定読み込み（無ければデフォルトを書き出す）
@@ -115,12 +141,18 @@ int main() {
         printHeader();
 
 		reviewer->Initialize();
-        std::string response = reviewer->RunOnce();
-        if(response.empty()) {
-			// 変更が無い場合は空文字列が返る想定なので、そのまま終了する
-            return 0;
-		}
-        reviewExitCode = reviewer->AnalyzeResponse(response);
+
+        if (historyCount > 0) {
+            // --history N モード: 直近 N コミットをレビュー
+            reviewExitCode = reviewer->RunHistory(historyCount);
+        } else {
+            // 通常モード: staged diff をレビュー
+            std::string response = reviewer->RunOnce();
+            if(response.empty()) {
+                return 0;
+            }
+            reviewExitCode = reviewer->AnalyzeResponse(response);
+        }
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
