@@ -12,6 +12,8 @@ public:
     void Initialize();
     // 1 回分のレビューを実行して結果文字列を返す（例外は呼び出し元で処理）
     std::string RunOnce();
+    // 指定コミットハッシュをレビューする。危険度が閾値超の場合は 1 を返す
+    int RunCommit(const std::string& sha);
     // 直近 n コミットを順番にレビューする。全コミット中の最大 exitCode を返す
     int RunHistory(int n);
     // レスポンスを解析して表示する。危険度が閾値超の場合は 1 を返す（コミットブロック用）

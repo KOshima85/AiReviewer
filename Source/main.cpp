@@ -60,14 +60,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // --history N オプションのパース
-    int historyCount = 0; // 0 = staged モード（通常動作）
+    // 引数パース: --history N / <commit-hash>
+    int historyCount = 0;   // 0 = staged モード（通常動作）
+    std::string commitSha;  // 空 = 指定なし
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--history") {
             if (i + 1 >= argc) {
                 std::cerr << "Error: --history requires a positive integer argument.\n";
-                std::cerr << "Usage: aireviewr --history <N>\n";
+                std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
                 return 1;
             }
             try {
@@ -79,11 +80,26 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Error: --history requires a positive integer. Got: " << argv[i] << "\n";
                 return 1;
             }
+        } else if (arg.rfind("--", 0) != 0) {
+            // -- で始まらない引数はコミットハッシュとして扱う
+            if (!commitSha.empty()) {
+                std::cerr << "Error: Multiple commit hashes specified.\n";
+                std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
+                return 1;
+            }
+            commitSha = arg;
         } else {
             std::cerr << "Error: Unknown argument: " << arg << "\n";
-            std::cerr << "Usage: aireviewr [--history <N>]\n";
+            std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
             return 1;
         }
+    }
+
+    // --history と <commit-hash> の同時指定は不可
+    if (historyCount > 0 && !commitSha.empty()) {
+        std::cerr << "Error: --history and <commit-hash> cannot be used together.\n";
+        std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
+        return 1;
     }
 
     // 設定読み込み（無ければデフォルトを書き出す）
@@ -103,6 +119,9 @@ int main(int argc, char* argv[]) {
         if (historyCount > 0) {
             // --history N モード: 直近 N コミットをレビュー
             reviewExitCode = reviewer->RunHistory(historyCount);
+        } else if (!commitSha.empty()) {
+            // コミットハッシュ指定モード
+            reviewExitCode = reviewer->RunCommit(commitSha);
         } else {
             // 通常モード: staged diff をレビュー
             std::string response = reviewer->RunOnce();

@@ -24,6 +24,21 @@ inline int countOccurrences(const std::string& text, const std::string& pattern)
     return count;
 }
 
+// コミット SHA として有効な文字列か検証する（省略形含む 4〜40 文字の hex）
+// コマンドインジェクション対策として getCommitDiff/RunCommit に渡す前に呼ぶこと
+inline bool isValidCommitSha(const std::string& sha)
+{
+    if (sha.size() < 4 || sha.size() > 40) return false;
+    for (char c : sha) {
+        if (!((c >= '0' && c <= '9') ||
+              (c >= 'a' && c <= 'f') ||
+              (c >= 'A' && c <= 'F'))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // glob パターンとして安全な文字のみで構成されているか検証する
 // シェルコマンドへの注入を防ぐため、英数字と一般的な glob 記号のみを許容する
 inline bool isValidGlobPattern(const std::string& pattern)

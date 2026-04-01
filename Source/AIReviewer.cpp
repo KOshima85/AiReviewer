@@ -186,6 +186,9 @@ std::vector<std::pair<std::string, std::string>> AIReviewer::collectCommits(int 
 }
 
 std::string AIReviewer::getCommitDiff(const std::string& sha) const {
+    if (!isValidCommitSha(sha)) {
+        throw std::invalid_argument("Invalid commit SHA: " + sha);
+    }
     std::string cmd = "git show -p --no-color " + sha;
 
     // include/exclude パターンが指定されている場合は git pathspec として追加する
@@ -217,6 +220,36 @@ void AIReviewer::persistHistoryResult(const std::string& content) const {
     std::ofstream ofs(out, std::ios::binary);
     if (!ofs) throw std::runtime_error("failed to write history result");
     ofs << content;
+}
+
+int AIReviewer::RunCommit(const std::string& sha) {
+    if (!isValidCommitSha(sha)) {
+        throw std::invalid_argument("Invalid commit SHA: " + sha);
+    }
+
+    std::cout << "Collecting diff for commit " << sha << "...\n";
+    std::string diff = getCommitDiff(sha);
+    if (diff.empty()) {
+        std::cout << "No diff found for commit " << sha << ".\n";
+        return 0;
+    }
+
+    std::cout << "Building prompt...\n";
+    auto prompt = buildPrompt(diff);
+
+    std::cout << "Sending to LLM...\n";
+    auto resp = callModel(prompt);
+
+#ifdef _DEBUG
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::string timestamp = std::to_string(now_c);
+    std::ofstream debugOut(csDataDir + "/debug_response_" + timestamp + ".txt", std::ios::binary);
+    debugOut << resp;
+    debugOut.close();
+#endif
+
+    return AnalyzeResponse(resp);
 }
 
 int AIReviewer::RunHistory(int n) {
