@@ -9,6 +9,7 @@
 
 #include <thread>
 #include <chrono>
+#include <optional>
 
 using nlohmann::json;
 
@@ -65,15 +66,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // 引数パース: --history N / <commit-hash>
-    int historyCount = 0;   // 0 = staged モード（通常動作）
-    std::string commitSha;  // 空 = 指定なし
+    // 引数パース: --history N / <commit-hash> / --use_staged_diff / --no_use_staged_diff
+    int historyCount = 0;                       // 0 = staged モード（通常動作）
+    std::string commitSha;                      // 空 = 指定なし
+    std::optional<bool> overrideStagedDiff;     // 未指定 = config の値を使う
+
+    static const char* kUsage =
+        "Usage: aireviewr [--history <N>] [<commit-hash>] [--use_staged_diff|--no_use_staged_diff]\n";
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--history") {
             if (i + 1 >= argc) {
                 std::cerr << "Error: --history requires a positive integer argument.\n";
-                std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
+                std::cerr << kUsage;
                 return 1;
             }
             try {
@@ -85,17 +91,31 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Error: --history requires an integer between 1 and 1000. Got: " << argv[i] << "\n";
                 return 1;
             }
+        } else if (arg == "--use_staged_diff") {
+            if (overrideStagedDiff.has_value() && !overrideStagedDiff.value()) {
+                std::cerr << "Error: --use_staged_diff and --no_use_staged_diff cannot be used together.\n";
+                std::cerr << kUsage;
+                return 1;
+            }
+            overrideStagedDiff = true;
+        } else if (arg == "--no_use_staged_diff") {
+            if (overrideStagedDiff.has_value() && overrideStagedDiff.value()) {
+                std::cerr << "Error: --use_staged_diff and --no_use_staged_diff cannot be used together.\n";
+                std::cerr << kUsage;
+                return 1;
+            }
+            overrideStagedDiff = false;
         } else if (arg.rfind("--", 0) != 0) {
             // -- で始まらない引数はコミットハッシュとして扱う
             if (!commitSha.empty()) {
                 std::cerr << "Error: Multiple commit hashes specified.\n";
-                std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
+                std::cerr << kUsage;
                 return 1;
             }
             commitSha = arg;
         } else {
             std::cerr << "Error: Unknown argument: " << arg << "\n";
-            std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
+            std::cerr << kUsage;
             return 1;
         }
     }
@@ -103,12 +123,17 @@ int main(int argc, char* argv[]) {
     // --history と <commit-hash> の同時指定は不可
     if (historyCount > 0 && !commitSha.empty()) {
         std::cerr << "Error: --history and <commit-hash> cannot be used together.\n";
-        std::cerr << "Usage: aireviewr [--history <N>] [<commit-hash>]\n";
+        std::cerr << kUsage;
         return 1;
     }
 
     // 設定読み込み（無ければデフォルトを書き出す）
     Config cfg = Config::LoadOrCreate(csDataDir + "/config.json");
+
+    // CLI 引数で明示指定された場合は config の値を上書きする
+    if (overrideStagedDiff.has_value()) {
+        cfg.use_staged_diff = overrideStagedDiff.value();
+    }
     
     auto now = std::chrono::system_clock::now();
 
