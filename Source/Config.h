@@ -90,6 +90,8 @@ struct Config {
                     try { cfg.port = std::stoi(j["port"].get<std::string>()); }
                     catch (...) {}
                 }
+                // 有効な TCP ポート範囲外の値はデフォルトに戻す
+                if (cfg.port < 1 || cfg.port > 65535) cfg.port = Defaults().port;
             }
             if (j.contains("model") && j["model"].is_string()) cfg.model = j["model"].get<std::string>();
             if (j.contains("review_focus") && j["review_focus"].is_array()) {

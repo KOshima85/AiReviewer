@@ -10,8 +10,7 @@ public:
 	OllamaConnector(const Config* cfg);
 
 private:
-	char m_sModelName[256];
-	void setModelName(const char* modelName);
+	std::string m_sModelName;
 	std::string sanitizeModelName(std::string_view modelName);
 
 };

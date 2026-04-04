@@ -41,13 +41,14 @@ inline bool isValidCommitSha(const std::string& sha)
 
 // glob パターンとして安全な文字のみで構成されているか検証する
 // シェルコマンドへの注入を防ぐため、英数字と一般的な glob 記号のみを許容する
+// 注意: []{}! はシェル/git pathspec で特殊な意味を持つため意図的に除外している
 inline bool isValidGlobPattern(const std::string& pattern)
 {
     if (pattern.empty()) return false;
     for (char c : pattern) {
         if (!std::isalnum(static_cast<unsigned char>(c)) &&
             c != '*' && c != '?' && c != '.' && c != '_' && c != '-' &&
-            c != '/' && c != '[' && c != ']' && c != '{' && c != '}' && c != '!') {
+            c != '/') {
             return false;
         }
     }
@@ -65,4 +66,39 @@ inline std::string applySeverityColors(std::string text)
     replaceAll(text, "MEDIUM", "\033[33mMEDIUM\033[0m");
     replaceAll(text, "LOW",    "\033[32mLOW\033[0m");
     return text;
+}
+
+// LLM などの外部出力に含まれる ANSI/VT エスケープシーケンスを除去する
+// ターミナル操作（画面クリア・タイトル変更等）を悪用した攻撃を防ぐ
+inline std::string stripAnsiEscapes(const std::string& text)
+{
+    std::string result;
+    result.reserve(text.size());
+    size_t i = 0;
+    while (i < text.size()) {
+        if (text[i] == '\033' && i + 1 < text.size()) {
+            char next = text[i + 1];
+            if (next == '[') {
+                // CSI シーケンス: ESC [ ... <終端バイト 0x40-0x7E>
+                i += 2;
+                while (i < text.size() && !(text[i] >= 0x40 && text[i] <= 0x7E)) ++i;
+                if (i < text.size()) ++i;
+            } else if (next == ']') {
+                // OSC シーケンス: ESC ] ... BEL または ESC '\'
+                i += 2;
+                while (i < text.size()) {
+                    if (text[i] == '\007') { ++i; break; }
+                    if (text[i] == '\033' && i + 1 < text.size() && text[i + 1] == '\\') { i += 2; break; }
+                    ++i;
+                }
+            } else {
+                // 2文字エスケープ: ESC <1文字>
+                i += 2;
+            }
+        } else {
+            result.push_back(text[i]);
+            ++i;
+        }
+    }
+    return result;
 }

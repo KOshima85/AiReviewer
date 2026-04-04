@@ -36,9 +36,14 @@ namespace fs = std::experimental::filesystem;
 #include "OllamaConnector.h"
 #include "AIReviewer.h"
 
-// ディレクトリ存在確認
+// ディレクトリ存在確認（シムリンク攻撃を防ぐため事前チェックを行う）
 static bool ensureDirectoryExists(const std::string& dir) {
     std::error_code ec;
+    // シムリンクであれば安全でないため拒否する
+    if (fs::is_symlink(dir, ec) && !ec) {
+        std::cerr << "Error: Data directory '" << dir << "' is a symlink. Aborting for safety.\n";
+        return false;
+    }
     if (fs::exists(dir, ec)) {
         return fs::is_directory(dir, ec);
     }
@@ -76,8 +81,8 @@ int main(int argc, char* argv[]) {
             } catch (...) {
                 historyCount = 0;
             }
-            if (historyCount <= 0) {
-                std::cerr << "Error: --history requires a positive integer. Got: " << argv[i] << "\n";
+            if (historyCount <= 0 || historyCount > 1000) {
+                std::cerr << "Error: --history requires an integer between 1 and 1000. Got: " << argv[i] << "\n";
                 return 1;
             }
         } else if (arg.rfind("--", 0) != 0) {

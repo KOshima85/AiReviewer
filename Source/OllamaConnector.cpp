@@ -3,10 +3,10 @@
 #include <thread>
 #include <algorithm>
 #include <cctype>
-#include <cstring>
 #include <string_view>
 #include <atomic>
-#include <cstdlib>
+#include <filesystem>
+#include <nlohmann/json.hpp>
 
 #include "Exec.h"
 #include "PayloadFile.h"
@@ -19,12 +19,15 @@ static int getCurrentPid() { return _getpid(); }
 static int getCurrentPid() { return static_cast<int>(getpid()); }
 #endif
 
-// プロセス内でユニークなペイロードファイル名を生成する
-// 形式: payload_<PID>_<連番>.json
+// プロセス内でユニークなペイロードファイル名をシステム一時ディレクトリに生成する
+// リポジトリ内ではなく OS 管理の一時領域を使うことでシムリンク攻撃のリスクを低減する
 static std::string makePayloadPath() {
     static std::atomic<int> s_counter{0};
     int idx = s_counter.fetch_add(1, std::memory_order_relaxed);
-    return std::string(csDataDir) + "/payload_" +
+    std::string tmpDir = std::filesystem::temp_directory_path().string();
+    // パス区切りを統一する
+    if (!tmpDir.empty() && tmpDir.back() != '/' && tmpDir.back() != '\\') tmpDir += '/';
+    return tmpDir + "aireviewr_payload_" +
            std::to_string(getCurrentPid()) + "_" +
            std::to_string(idx) + ".json";
 }
@@ -35,7 +38,7 @@ void OllamaConnector::Initialize()
         throw std::runtime_error("Config is null");
 	}
 
-    setModelName(cfg->model.c_str());
+    m_sModelName = sanitizeModelName(cfg->model);
 
     {
 	    // ollama list コマンドでモデルが存在するか確認する
@@ -54,13 +57,14 @@ std::string OllamaConnector::Call(const std::string& prompt)
         throw std::runtime_error("Config is null");
     }
 
-    std::string escaped; // JSONエスケープは基底クラスの jsonEscape を使用
-    // 単純再利用: 基底クラスの jsonEscape を使用
-    escaped = jsonEscape(prompt);
-    std::string payload =
-        std::string("{\"model\":\"") + cfg->model +
-        std::string("\",\"prompt\":\"") + escaped +
-        std::string("\",\"stream\":false,\"temperature\":0.4,\"repeat_penalty\":1.2}");
+    // nlohmann::json でペイロードを組み立てる（文字列連結による JSON インジェクションを防ぐ）
+    nlohmann::json payload_json;
+    payload_json["model"]          = m_sModelName; // サニタイズ済みモデル名を使用
+    payload_json["prompt"]         = prompt;        // nlohmann が JSON エスケープを行う
+    payload_json["stream"]         = false;
+    payload_json["temperature"]    = 0.4;
+    payload_json["repeat_penalty"] = 1.2;
+    std::string payload = payload_json.dump();
 
     PayloadFile payloadFile{ makePayloadPath() };
 #ifdef _DEBUG
@@ -77,6 +81,15 @@ std::string OllamaConnector::Call(const std::string& prompt)
             "Invalid endpoint URL: must start with 'http://' or 'https://'. Got: " + url);
     }
 
+    // シェルメタキャラクタを含む endpoint を拒否する（コマンドインジェクション対策）
+    static const std::string kForbiddenUrlChars = "&|;<>^%!(){}\\\"' \t\r\n`$";
+    for (char c : url) {
+        if (kForbiddenUrlChars.find(c) != std::string::npos) {
+            throw std::runtime_error(
+                "Endpoint URL contains a forbidden character. Use a plain HTTP URL without shell metacharacters.");
+        }
+    }
+
     // endpoint にポートが入っていない場合は付与
     if (!url.empty() && url.back() == '/') url.pop_back();
     url += ":" + std::to_string(cfg->port) + "/api/generate";
@@ -91,8 +104,7 @@ std::string OllamaConnector::Call(const std::string& prompt)
 }
 
 OllamaConnector::OllamaConnector(const Config* cfg):
-	LLMConnector(cfg),
-    m_sModelName("")
+	LLMConnector(cfg)
 {
 }
 
@@ -151,15 +163,4 @@ std::string OllamaConnector::sanitizeModelName(std::string_view modelName)
     if (normalized.empty()) normalized = MODEL_NAME;
 
     return normalized;
-}
-
-void OllamaConnector::setModelName(const char* modelName)
-{
-    std::string normalized = sanitizeModelName(modelName ? modelName : "");
-    std::size_t maxlen = sizeof(m_sModelName) - 1;
-    std::size_t copylen = std::min(maxlen, normalized.size());
-    if (copylen > 0) {
-        std::memcpy(m_sModelName, normalized.data(), copylen);
-    }
-    m_sModelName[copylen] = '\0';
 }

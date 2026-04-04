@@ -94,6 +94,9 @@ int AIReviewer::AnalyzeResponse(const std::string& response)
 			// "response" フィールドがある場合はそこからレビュー結果を取り出す
             std::string parsed = j["response"].get<std::string>();
 
+            // 悪意ある ANSI エスケープシーケンスによるターミナル操作を防ぐ
+            parsed = stripAnsiEscapes(parsed);
+
 			// 結果をファイルに保存する
 			persistResult(parsed);
 
@@ -179,6 +182,8 @@ std::vector<std::pair<std::string, std::string>> AIReviewer::collectCommits(int 
         if (!line.empty() && line.back() == '\r') line.pop_back();
         if (line.size() < 41) continue; // SHA(40文字) + スペース 未満は無視
         std::string sha = line.substr(0, 40);
+        // 抽出した SHA を即時検証し、不正な値はスキップする
+        if (!isValidCommitSha(sha)) continue;
         std::string subject = line.size() > 41 ? line.substr(41) : "";
         commits.emplace_back(sha, subject);
     }

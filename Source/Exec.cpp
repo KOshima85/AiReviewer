@@ -9,9 +9,11 @@
 #ifdef _WIN32
 #define popen _popen
 #define pclose _pclose
+#include <windows.h>
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <signal.h>
 #endif
 
 // exec:
@@ -57,7 +59,11 @@ std::string exec(const std::string& cmd, std::chrono::milliseconds timeout) {
             // タイムアウトが設定されており、アイドル時間が上限を超えたら警告して打ち切る
             if (timeout.count() > 0 && idleElapsed >= timeout) {
                 std::cerr << "Warning: exec() timed out after " << idleElapsed.count() << " ms with no data\n";
-                break;
+                // パイプを閉じてプロセスに終了シグナルを送る
+                // pclose は内部でプロセスの終了を待機するため、先に pclose して抜ける
+                pclose(fp);
+                fp = nullptr;
+                return result;
             }
             continue;
         }
@@ -65,7 +71,9 @@ std::string exec(const std::string& cmd, std::chrono::milliseconds timeout) {
         // n == buffer.size() の場合はバッファが満杯なのでそのまま読み続ける
     }
 
-    int rc = pclose(fp);
-    (void)rc; // 必要なら rc をチェックして例外化
+    if (fp) {
+        int rc = pclose(fp);
+        (void)rc; // 必要なら rc をチェックして例外化
+    }
     return result;
 }
