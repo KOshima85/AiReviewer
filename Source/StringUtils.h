@@ -2,12 +2,6 @@
 #include <string>
 #include <cctype>
 
-#ifdef _WIN32
-#include <io.h>
-#else
-#include <unistd.h>
-#endif
-
 // 文字列中の from を全て to に置換する
 inline void replaceAll(std::string& str, const std::string& from, const std::string& to)
 {
@@ -61,18 +55,6 @@ inline bool isValidGlobPattern(const std::string& pattern)
     return true;
 }
 
-// stdout が ANSI カラーに対応しているか（TTY かどうか）を返す
-// 結果は static にキャッシュして毎回システムコールしないようにする
-inline bool isAnsiSupported()
-{
-#ifdef _WIN32
-    static const bool s_supported = (_isatty(_fileno(stdout)) != 0);
-#else
-    static const bool s_supported = (isatty(fileno(stdout)) != 0);
-#endif
-    return s_supported;
-}
-
 // レビュー結果テキスト中の危険度ラベルに ANSI カラーコードを適用して返す
 // HIGH   → 赤    (\033[31m)
 // MEDIUM → 黄    (\033[33m)
@@ -80,7 +62,6 @@ inline bool isAnsiSupported()
 // 将来的に HTML タグや JSON 形式への変換が必要な場合はここを変更する
 inline std::string applySeverityColors(std::string text)
 {
-    if (!isAnsiSupported()) return text;
     replaceAll(text, "HIGH",   "\033[31mHIGH\033[0m");
     replaceAll(text, "MEDIUM", "\033[33mMEDIUM\033[0m");
     replaceAll(text, "LOW",    "\033[32mLOW\033[0m");
